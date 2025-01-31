@@ -1,5 +1,5 @@
 # We use the official Python 3.11 image as our base image and will add our code to it. For more details, see https://hub.docker.com/_/python
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 # We install poetry to generate a list of dependencies which will be required by our application
 RUN pip install poetry==1.8.4
