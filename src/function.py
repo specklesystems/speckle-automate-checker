@@ -5,10 +5,10 @@ Use the automation_context module to wrap your function in an Automate context h
 
 from speckle_automate import AutomationContext, AutomateBase
 
-from rules import apply_rules_to_objects
-from inputs import FunctionInputs
-from helpers import flatten_base
-from spreadsheet import read_rules_from_spreadsheet
+from src.rules import apply_rules_to_objects
+from src.inputs import FunctionInputs
+from src.helpers import flatten_base
+from src.spreadsheet import read_rules_from_spreadsheet
 
 
 def automate_function(
