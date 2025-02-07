@@ -1,12 +1,12 @@
-from typing import List, Optional, Tuple, Any, cast
+import re
+from typing import Any, cast
+
+import pandas as pd
+from Levenshtein import ratio
 from speckle_automate import AutomationContext, ObjectResultLevel
 from specklepy.objects.base import Base
-from Levenshtein import ratio
-import pandas as pd
-import re
 
 from src.helpers import speckle_print
-
 
 # We're going to define a set of rules that will allow us to filter and
 # process parameters in our Speckle objects. These rules will be encapsulated
@@ -14,8 +14,7 @@ from src.helpers import speckle_print
 
 
 class Rules:
-    """
-    A collection of rules for processing properties in Speckle objects.
+    """A collection of rules for processing properties in Speckle objects.
 
     Simple rules can be straightforwardly implemented as static methods that
     return boolean value to be used either as a filter or a condition.
@@ -27,7 +26,7 @@ class Rules:
     @staticmethod
     def try_get_display_value(
             speckle_object: Base,
-    ) -> Optional[List[Base]]:
+    ) -> list[Base] | None:
         """Try fetching the display value from a Speckle object.
 
         This method encapsulates the logic for attempting to retrieve the display value from a Speckle object.
@@ -62,8 +61,7 @@ class Rules:
 
     @staticmethod
     def is_displayable_object(speckle_object: Base) -> bool:
-        """
-        Determines if a given Speckle object is displayable.
+        """Determines if a given Speckle object is displayable.
 
         This method encapsulates the logic for determining if a Speckle object is displayable.
         It checks if the speckle_object has a display value and returns True if it does, otherwise it returns False.
@@ -92,7 +90,7 @@ class Rules:
         return False
 
 
-def get_displayable_objects(flat_list_of_objects: List[Base]) -> List[Base]:
+def get_displayable_objects(flat_list_of_objects: list[Base]) -> list[Base]:
     # modify this lambda from before to use the static method from the Checks class
     return [
         speckle_object
@@ -105,10 +103,9 @@ def get_displayable_objects(flat_list_of_objects: List[Base]) -> List[Base]:
 
 
 def filter_objects_by_category(
-        speckle_objects: List[Base], category_input: str
-) -> Tuple[List[Base], List[Base]]:
-    """
-    Filters objects by category value and test.
+        speckle_objects: list[Base], category_input: str
+) -> tuple[list[Base], list[Base]]:
+    """Filters objects by category value and test.
 
     This function takes a list of Speckle objects, filters out the objects
     with a matching category value and satisfies the test, and returns
@@ -140,8 +137,7 @@ class RevitRules:
     def has_parameter(
             speckle_object: Base, parameter_name: str, *_args, **_kwargs
     ) -> bool:
-        """
-        Checks if the speckle_object has a Revit parameter with the given name.
+        """Checks if the speckle_object has a Revit parameter with the given name.
 
         This method checks if the speckle_object has a parameter with the specified name,
         considering the following cases:
@@ -190,8 +186,7 @@ class RevitRules:
             parameter_name: str,
             default_value: Any = None,
     ) -> Any | None:
-        """
-        Retrieves the value of the specified Revit parameter from the speckle_object.
+        """Retrieves the value of the specified Revit parameter from the speckle_object.
 
         This method checks if the speckle_object has a parameter with the specified name,
         considering the following cases:
@@ -249,14 +244,13 @@ class RevitRules:
             None,
         )
 
-    from typing import Any, Union, List
+    from typing import Any
 
     @staticmethod
     def is_parameter_value(
             speckle_object: Base, parameter_name: str, value_to_match: Any
     ) -> bool:
-        """
-        Checks if the value of the specified parameter matches the given value.
+        """Checks if the value of the specified parameter matches the given value.
 
         Args:
             speckle_object (Base): The Speckle object to check.
@@ -277,8 +271,7 @@ class RevitRules:
             fuzzy: bool = False,
             threshold: float = 0.8,
     ) -> bool:
-        """
-        Checks if the value of the specified parameter matches the given pattern.
+        """Checks if the value of the specified parameter matches the given pattern.
 
         Args:
             speckle_object (Base): The Speckle object to check.
@@ -304,8 +297,7 @@ class RevitRules:
 
     @staticmethod
     def parse_number_from_string(input_string: str):
-        """
-        Attempts to parse an integer or float from a given string.
+        """Attempts to parse an integer or float from a given string.
 
         Args:
             input_string (str): The string containing the number to be parsed.
@@ -328,8 +320,7 @@ class RevitRules:
     def is_parameter_value_greater_than(
             speckle_object: Base, parameter_name: str, threshold: str
     ) -> bool:
-        """
-        Checks if the value of the specified parameter is greater than the given threshold.
+        """Checks if the value of the specified parameter is greater than the given threshold.
 
         Args:
             speckle_object (Base): The Speckle object to check.
@@ -339,12 +330,11 @@ class RevitRules:
         Returns:
             bool: True if the parameter value is greater than the threshold, False otherwise.
         """
-
         parameter_value = RevitRules.get_parameter_value(speckle_object, parameter_name)
         if parameter_value is None:
             return False
 
-        if not isinstance(parameter_value, (int, float)):
+        if not isinstance(parameter_value, int | float):
             raise ValueError(
                 f"Parameter value must be a number, got {type(parameter_value)}"
             )
@@ -354,8 +344,7 @@ class RevitRules:
     def is_parameter_value_less_than(
             speckle_object: Base, parameter_name: str, threshold: str
     ) -> bool:
-        """
-        Checks if the value of the specified parameter is less than the given threshold.
+        """Checks if the value of the specified parameter is less than the given threshold.
 
         Args:
             speckle_object (Base): The Speckle object to check.
@@ -368,7 +357,7 @@ class RevitRules:
         parameter_value = RevitRules.get_parameter_value(speckle_object, parameter_name)
         if parameter_value is None:
             return False
-        if not isinstance(parameter_value, (int, float)):
+        if not isinstance(parameter_value, int | float):
             raise ValueError(
                 f"Parameter value must be a number, got {type(parameter_value)}"
             )
@@ -378,8 +367,7 @@ class RevitRules:
     def is_parameter_value_in_range(
             speckle_object: Base, parameter_name: str, range: str
     ) -> bool:
-        """
-        Checks if the value of the specified parameter falls within the given range.
+        """Checks if the value of the specified parameter falls within the given range.
 
         Args:
             speckle_object (Base): The Speckle object to check.
@@ -389,7 +377,6 @@ class RevitRules:
         Returns:
             bool: True if the parameter value falls within the range (inclusive), False otherwise.
         """
-
         min_value, max_value = range.split(",")
         min_value = RevitRules.parse_number_from_string(min_value)
         max_value = RevitRules.parse_number_from_string(max_value)
@@ -397,7 +384,7 @@ class RevitRules:
         parameter_value = RevitRules.get_parameter_value(speckle_object, parameter_name)
         if parameter_value is None:
             return False
-        if not isinstance(parameter_value, (int, float)):
+        if not isinstance(parameter_value, int | float):
             raise ValueError(
                 f"Parameter value must be a number, got {type(parameter_value)}"
             )
@@ -408,12 +395,11 @@ class RevitRules:
     def is_parameter_value_in_range_expanded(
             speckle_object: Base,
             parameter_name: str,
-            min_value: Union[int, float],
-            max_value: Union[int, float],
+            min_value: int | float,
+            max_value: int | float,
             inclusive: bool = True,
     ) -> bool:
-        """
-        Checks if the value of the specified parameter falls within the given range.
+        """Checks if the value of the specified parameter falls within the given range.
 
         Args:
             speckle_object (Base): The Speckle object to check.
@@ -429,7 +415,7 @@ class RevitRules:
         parameter_value = RevitRules.get_parameter_value(speckle_object, parameter_name)
         if parameter_value is None:
             return False
-        if not isinstance(parameter_value, (int, float)):
+        if not isinstance(parameter_value, int | float):
             raise ValueError(
                 f"Parameter value must be a number, got {type(parameter_value)}"
             )
@@ -442,10 +428,9 @@ class RevitRules:
 
     @staticmethod
     def is_parameter_value_in_list(
-            speckle_object: Base, parameter_name: str, value_list: List[Any]
+            speckle_object: Base, parameter_name: str, value_list: list[Any]
     ) -> bool:
-        """
-        Checks if the value of the specified parameter is present in the given list of values.
+        """Checks if the value of the specified parameter is present in the given list of values.
 
         Args:
             speckle_object (Base): The Speckle object to check.
@@ -473,8 +458,7 @@ class RevitRules:
 
     @staticmethod
     def is_parameter_value_true(speckle_object: Base, parameter_name: str) -> bool:
-        """
-        Checks if the value of the specified parameter is True.
+        """Checks if the value of the specified parameter is True.
 
         Args:
             speckle_object (Base): The Speckle object to check.
@@ -488,8 +472,7 @@ class RevitRules:
 
     @staticmethod
     def is_parameter_value_false(speckle_object: Base, parameter_name: str) -> bool:
-        """
-        Checks if the value of the specified parameter is False.
+        """Checks if the value of the specified parameter is False.
 
         Args:
             speckle_object (Base): The Speckle object to check.
@@ -503,8 +486,7 @@ class RevitRules:
 
     @staticmethod
     def has_category(speckle_object: Base) -> bool:
-        """
-        Checks if the speckle_object has a 'category' parameter.
+        """Checks if the speckle_object has a 'category' parameter.
 
         This method checks if the speckle_object has a 'category' parameter.
         If the 'category' parameter exists, it returns True; otherwise, it returns False.
@@ -519,8 +501,7 @@ class RevitRules:
 
     @staticmethod
     def is_category(speckle_object: Base, category_input: str) -> bool:
-        """
-        Checks if the value of the 'category' property matches the given input.
+        """Checks if the value of the 'category' property matches the given input.
 
         This method checks if the 'category' property of the speckle_object
         matches the given category_input. If they match, it returns True;
@@ -538,8 +519,7 @@ class RevitRules:
 
     @staticmethod
     def get_category_value(speckle_object: Base) -> str:
-        """
-        Retrieves the value of the 'category' parameter from the speckle_object.
+        """Retrieves the value of the 'category' parameter from the speckle_object.
 
         This method retrieves the value of the 'category' parameter from the speckle_object.
         If the 'category' parameter exists and its value is not None, it returns the value.
@@ -570,8 +550,7 @@ input_predicate_mapping = {
 
 
 def evaluate_condition(speckle_object: Base, condition: pd.Series) -> bool:
-    """
-    Given a Speckle object and a condition, evaluates the condition and returns a boolean value.
+    """Given a Speckle object and a condition, evaluates the condition and returns a boolean value.
     A condition is a pandas Series object with the following keys:
     - 'Property Name': The name of the property to evaluate.
     - 'Predicate': The predicate to use for evaluation.
@@ -602,10 +581,9 @@ def evaluate_condition(speckle_object: Base, condition: pd.Series) -> bool:
 
 
 def process_rule(
-        speckle_objects: List[Base], rule_group: pd.DataFrame
-) -> Tuple[List[Base], List[Base]]:
-    """
-    Processes a set of rules against Speckle objects, returning those that pass and fail.
+        speckle_objects: list[Base], rule_group: pd.DataFrame
+) -> tuple[list[Base], list[Base]]:
+    """Processes a set of rules against Speckle objects, returning those that pass and fail.
     The first rule is used as a filter ('WHERE'), and subsequent rules as conditions ('AND').
 
     Args:
@@ -615,7 +593,6 @@ def process_rule(
     Returns:
         A tuple of lists containing objects that passed and failed the rule.
     """
-
     # Extract the 'WHERE' condition and subsequent 'AND' conditions
     filter_condition = rule_group.iloc[0]
     subsequent_conditions = rule_group.iloc[1:]
@@ -633,7 +610,7 @@ def process_rule(
     rule_number = rule_info["Rule Number"]
 
     speckle_print(
-        f"{ filter_condition['Logic']} {filter_condition['Property Name']} "
+        f"{filter_condition['Logic']} {filter_condition['Property Name']} "
         f"{filter_condition['Predicate']} {filter_condition['Value']}"
     )
 
@@ -658,12 +635,11 @@ def process_rule(
 
 
 def apply_rules_to_objects(
-        speckle_objects: List[Base],
+        speckle_objects: list[Base],
         rules_df: pd.DataFrame,
         automate_context: AutomationContext,
-) -> dict[str, Tuple[List[Base], List[Base]]]:
-    """
-    Applies defined rules to a list of objects and updates the automate context based on the results.
+) -> dict[str, tuple[list[Base], list[Base]]]:
+    """Applies defined rules to a list of objects and updates the automate context based on the results.
 
     Args:
         speckle_objects (List[Base]): The list of objects to which rules are applied.
@@ -700,14 +676,13 @@ def apply_rules_to_objects(
 
 
 def attach_results(
-        speckle_objects: List[Base],
+        speckle_objects: list[Base],
         rule_info: pd.Series,
         rule_id: str,
         context: AutomationContext,
         passed: bool,
 ) -> None:
-    """
-    Attaches the results of a rule to the objects in the context.
+    """Attaches the results of a rule to the objects in the context.
 
     Args:
         speckle_objects (List[Base]): The list of objects to which the rule was applied.
@@ -716,30 +691,39 @@ def attach_results(
         context (AutomationContext): The context manager for attaching results.
         passed (bool): Whether the rule passed or failed.
     """
-
     if not speckle_objects:
         return
 
-    message = f"{rule_info['Message']} - {'Passed' if passed else 'Failed'}"
-    if passed:
-        context.attach_info_to_objects(
-            category=f"Rule {rule_id} Success",
-            object_ids=[speckle_object.id for speckle_object in speckle_objects],
-            message=message,
-        )
-    else:
+    # Create structured metadata for onward data analysis uses
+    metadata = {
+        "rule_id": rule_id,
+        "status": "PASS" if passed else "FAIL",
+        "severity": rule_info["Report Severity"],
+        "rule_message": rule_info["Message"],
+        "object_count": len(speckle_objects)
+    }
 
+    message = f"{rule_info['Message']}"
+
+    if not passed:
         speckle_print(rule_info["Report Severity"])
 
         severity = (
             ObjectResultLevel.WARNING
-            if rule_info["Report Severity"].capitalize() == "Warning"
-               or rule_info["Report Severity"].capitalize() == "Warn"
+            if rule_info["Report Severity"].capitalize() in ["Warning", "Warn"]
             else ObjectResultLevel.ERROR
         )
         context.attach_result_to_objects(
-            category=f"Rule {rule_id} Results",
+            category=f"Rule {rule_id}",
             object_ids=[speckle_object.id for speckle_object in speckle_objects],
             message=message,
             level=severity,
+            metadata=metadata,
+        )
+    else:
+        context.attach_info_to_objects(
+            category=f"Rule {rule_id}",
+            object_ids=[speckle_object.id for speckle_object in speckle_objects],
+            message=message,
+            metadata=metadata,
         )
