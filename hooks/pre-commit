@@ -1,0 +1,13 @@
+#!/bin/bash
+echo "Running pre-commit hook..."
+
+# Ensure dependencies are installed with uv
+uv pip install --requirement requirements.txt
+
+# Export dependencies with uv (and overwrite requirements.txt)
+uv pip freeze > requirements.txt
+
+# Add generated requirements.txt to git
+git add requirements.txt
+
+echo "Pre-commit hook completed successfully!"
