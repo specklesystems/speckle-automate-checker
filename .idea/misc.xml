@@ -7,5 +7,5 @@
     <option name="pathToExecutable" value="\\wsl.localhost\UbuntuDev\mnt\d\Repos\Speckle Automate\Checker\.venv\bin\black" />
     <option name="sdkName" value="WSL Checker" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="WSL Checker" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="uv (Checker)" project-jdk-type="Python SDK" />
 </project>

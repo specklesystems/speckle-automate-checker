@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Allows for QAQC property checking with Speckle"
 authors = ["Jonathon Broughton <jonathon@speckle.systems>"]
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "more-itertools>=10.6.0",
     "pandas>=2.2.3",

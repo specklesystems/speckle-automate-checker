@@ -11,26 +11,33 @@ jobs:
       FUNCTION_SCHEMA_FILE_NAME: functionSchema.json
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4.2.2
-      - uses: actions/setup-python@v5
+      # Step 1: Checkout the repository
+      - name: Checkout Repository
+        uses: actions/checkout@v4.2.2
+
+      # Step 2: Set up Python
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install poetry
+
+      # Step 3: Install dependencies using pip
+      - name: Install Dependencies
         run: |
-          pip install poetry==1.8.4 &&
-          poetry config virtualenvs.create false &&
-          poetry config virtualenvs.in-project false &&
-          poetry config installer.parallel true
-      - name: Restore dependencies
-        run: poetry install --no-root
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Step 4: Generate the schema
       - name: Extract functionInputSchema
         id: extract_schema
         run: |
-          python main.py generate_schema ${HOME}/${{ env.FUNCTION_SCHEMA_FILE_NAME }}
+          python main.py generate_schema "${{ env.FUNCTION_SCHEMA_FILE_NAME }}"
+
+      # Step 5: Build and publish the Speckle function
       - name: Speckle Automate Function - Build and Publish
         uses: specklesystems/speckle-automate-github-composite-action@0.9.0
         with:
-          speckle_automate_url: ${{ env.SPECKLE_AUTOMATE_URL || vars.SPECKLE_AUTOMATE_URL || 'https://automate.speckle.dev' }}
+          speckle_automate_url: ${{ env.SPECKLE_AUTOMATE_URL || 'https://automate.speckle.dev' }}
           speckle_token: ${{ secrets.SPECKLE_FUNCTION_TOKEN }}
           speckle_function_id: ${{ secrets.SPECKLE_FUNCTION_ID }}
           speckle_function_input_schema_file_path: ${{ env.FUNCTION_SCHEMA_FILE_NAME }}
