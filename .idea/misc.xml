@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="Python 3.11.4 WSL (UbuntuDev): (/home/jsdbroughton/.virtualenvs/speckle_automate-mesh_density_checker/bin/python)" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.11.4 WSL (UbuntuDev): (/home/jsdbroughton/.virtualenvs/speckle_automate-mesh_density_checker/bin/python)" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="WSL Checker" project-jdk-type="Python SDK" />
 </project>

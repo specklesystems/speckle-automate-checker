@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "speckle-automate-py"
+name = "speckle-automate-checker"
 version = "0.1.0"
 description = "Allows for QAQC property checking with Speckle"
 authors = ["Jonathon Broughton <jonathon@speckle.systems>"]
