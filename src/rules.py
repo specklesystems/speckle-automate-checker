@@ -1,6 +1,5 @@
 import re
-from typing import Any
-from typing import cast
+from typing import Any, cast
 
 import pandas as pd
 from Levenshtein import ratio
@@ -10,7 +9,6 @@ from specklepy.objects.base import Base
 
 from src.helpers import speckle_print
 from src.inputs import PropertyMatchMode
-
 
 # We're going to define a set of rules that will allow us to filter and
 # process parameters in our Speckle objects. These rules will be encapsulated
@@ -33,15 +31,16 @@ class Rules:
     ) -> list[Base] | None:
         """Try fetching the display value from a Speckle object.
 
-        This method encapsulates the logic for attempting to retrieve the display value from a Speckle object.
-        It returns a list containing the display values if found, otherwise it returns None.
+        This method encapsulates the logic for attempting to retrieve the display value from a
+        Speckle object. It returns a list containing the display values if found,
+        otherwise it returns None.
 
         Args:
             speckle_object (Base): The Speckle object to extract the display value from.
 
         Returns:
-            Optional[List[Base]]: A list containing the display values. If no display value is found,
-                                   returns None.
+            Optional[List[Base]]: A list containing the display values.
+                                  If no display value is found, returns None.
         """
         # Attempt to get the display value from the speckle_object
         raw_display_value = getattr(speckle_object, "displayValue", None) or getattr(
@@ -95,15 +94,20 @@ class Rules:
 
 
 def get_displayable_objects(flat_list_of_objects: list[Base]) -> list[Base]:
-    # modify this lambda from before to use the static method from the Checks class
+    """Filters a list of Speckle objects to only include displayable objects.
+
+    This function takes a list of Speckle objects and filters out the objects that are displayable.
+    It returns a list containing only the displayable objects.
+
+    Args:
+        flat_list_of_objects (List[Base]): The list of Speckle objects to filter.
+    """
     return [
         speckle_object
         for speckle_object in flat_list_of_objects
         if Rules.is_displayable_object(speckle_object)
            and getattr(speckle_object, "id", None)
     ]
-
-    # and the same logic that could be modified to traverse a tree of objects
 
 
 def filter_objects_by_category(
@@ -137,6 +141,9 @@ def filter_objects_by_category(
 
 
 class RevitRules:
+    """A collection of rules for processing Revit parameters in Speckle objects."""
+
+
     @staticmethod
     def has_parameter(
             speckle_object: Base, parameter_name: str, *_args, **_kwargs
@@ -206,6 +213,7 @@ class RevitRules:
         Args:
             speckle_object (Base): The Speckle object to retrieve the parameter value from.
             parameter_name (str): The name of the parameter to retrieve the value for.
+            match_mode (PropertyMatchMode): The matching mode to use for parameter lookup
             default_value: The default value to compare against. If the parameter value matches this value,
                            it will be treated the same as None.
 
@@ -239,28 +247,21 @@ class RevitRules:
         result = search_params(parameters, name, mode == PropertyMatchMode.FUZZY)
         return result if result is not None else default
 
-
-
-
-
-
-
-
     @staticmethod
     def strict(name: str,  parameters: object, default: Any) -> Any:
+        """Strictly search for a parameter in a parameters object."""
+        path_parts = name.split('.')
+        current = parameters
 
-            path_parts = name.split('.')
-            current = parameters
+        for part in path_parts:
+            if not current or not isinstance(current, dict):
+                return default
+            key = next((k for k in current.keys() if k.lower() == part.lower()), None)
+            if not key:
+                return default
+            current = current[key]
 
-            for part in path_parts:
-                if not current or not isinstance(current, dict):
-                    return default
-                key = next((k for k in current.keys() if k.lower() == part.lower()), None)
-                if not key:
-                    return default
-                current = current[key]
-
-            return current.get('value', current) if isinstance(current, dict) else current
+        return current.get('value', current) if isinstance(current, dict) else current
 
 
 
@@ -410,19 +411,19 @@ class RevitRules:
 
     @staticmethod
     def is_parameter_value_in_range(
-            speckle_object: Base, parameter_name: str, range: str
+            speckle_object: Base, parameter_name: str, value_range: str
     ) -> bool:
         """Checks if the value of the specified parameter falls within the given range.
 
         Args:
             speckle_object (Base): The Speckle object to check.
             parameter_name (str): The name of the parameter to check.
-            range (str): The range to check against, in the format "min_value, max_value".
+            value_range (str): The range to check against, in the format "min_value, max_value".
 
         Returns:
             bool: True if the parameter value falls within the range (inclusive), False otherwise.
         """
-        min_value, max_value = range.split(",")
+        min_value, max_value = value_range.split(",")
         min_value = RevitRules.parse_number_from_string(min_value)
         max_value = RevitRules.parse_number_from_string(max_value)
 
@@ -596,6 +597,7 @@ input_predicate_mapping = {
 
 def evaluate_condition(speckle_object: Base, condition: pd.Series) -> bool:
     """Given a Speckle object and a condition, evaluates the condition and returns a boolean value.
+
     A condition is a pandas Series object with the following keys:
     - 'Property Name': The name of the property to evaluate.
     - 'Predicate': The predicate to use for evaluation.
@@ -629,6 +631,7 @@ def process_rule(
         speckle_objects: list[Base], rule_group: pd.DataFrame
 ) -> tuple[list[Any], list[Any]] | tuple[list[Base], list[Base]]:
     """Processes a set of rules against Speckle objects, returning those that pass and fail.
+
     The first rule is used as a filter ('WHERE'), and subsequent rules as conditions ('AND').
 
     Args:
@@ -695,7 +698,6 @@ def apply_rules_to_objects(
         grouped_rules (pd.DataFrameGroupBy): The DataFrame containing rule definitions.
         automate_context (Any): Context manager for attaching rule results.
     """
-
     grouped_results = {}
 
     for rule_id, rule_group in grouped_rules:
@@ -747,8 +749,6 @@ def attach_results(
         context (AutomationContext): The context manager for attaching results.
         passed (bool): Whether the rule passed or failed.
     """
-
-    # passed having an explicit None value means that the rule can be marked as skipped
     if not speckle_objects:
         return
 
