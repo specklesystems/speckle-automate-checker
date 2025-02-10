@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="RuffConfigService">
-    <option name="runRuffOnSave" value="true" />
+    <option name="enableLsp" value="false" />
+    <option name="runRuffOnReformatCode" value="false" />
+    <option name="showRuleCode" value="false" />
     <option name="useRuffServer" value="true" />
   </component>
 </project>

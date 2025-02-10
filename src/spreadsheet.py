@@ -1,7 +1,8 @@
 import pandas as pd
+from pandas import DataFrame
 
 
-def read_rules_from_spreadsheet(url):
+def read_rules_from_spreadsheet(url: str) -> DataFrame | None:
     """Reads a TSV file from a provided URL and returns a DataFrame.
 
     Args:

@@ -1,24 +1,28 @@
 """Run integration tests with a speckle server."""
+from speckle_automate.fixtures import *
 
 from speckle_automate import (
     AutomationContext,
     AutomationRunData,
     AutomationStatus,
-    run_function
+    run_function,
 )
 
-from src.inputs import FunctionInputs
 from src.function import automate_function
-
+from src.helpers import speckle_print
+from src.inputs import FunctionInputs
 
 def test_function_run(test_automation_run_data: AutomationRunData, test_automation_token: str):
+
+    speckle_print(str(test_automation_run_data))
+    speckle_print(str(test_automation_token))
+
     """Run an integration test for the automate function."""
     automation_context = AutomationContext.initialize(
         test_automation_run_data, test_automation_token
     )
     default_url: str = (
-        "https://docs.google.com/spreadsheets/d/e/2PACX-1vSFmjLfqxPKXJHg-wEs1cp_nJEJJhESGVTLCvWLG_"
-        "IgIuRZ4CmMDCSceOYFvuo8IqcmT4sj9qPiLfCx/pub?gid=0&single=true&output=tsv"
+        "https://drive.google.com/uc?export=download&id=1hiPSw23eOaqd27QD_YsXvZg9PWm7_XBx"
     )
 
     automate_sdk = run_function(
@@ -28,5 +32,3 @@ def test_function_run(test_automation_run_data: AutomationRunData, test_automati
     )
 
     assert automate_sdk.run_status == AutomationStatus.SUCCEEDED
-
-# cli command to run just this test with pytest: pytest tests/local_test_exercise2.py::test_function_run

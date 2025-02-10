@@ -1,12 +1,16 @@
 import re
-from typing import Any, cast
+from typing import Any
+from typing import cast
 
 import pandas as pd
 from Levenshtein import ratio
+from pandas.core.groupby import DataFrameGroupBy
 from speckle_automate import AutomationContext, ObjectResultLevel
 from specklepy.objects.base import Base
 
 from src.helpers import speckle_print
+from src.inputs import PropertyMatchMode
+
 
 # We're going to define a set of rules that will allow us to filter and
 # process parameters in our Speckle objects. These rules will be encapsulated
@@ -184,6 +188,7 @@ class RevitRules:
     def get_parameter_value(
             speckle_object: Base,
             parameter_name: str,
+            match_mode: PropertyMatchMode = PropertyMatchMode.MIXED,
             default_value: Any = None,
     ) -> Any | None:
         """Retrieves the value of the specified Revit parameter from the speckle_object.
@@ -207,44 +212,84 @@ class RevitRules:
         Returns:
             The value of the parameter if it exists and is not None or the specified default_value, or None otherwise.
         """
-        # Attempt to retrieve the parameter from the root object level
-        value = getattr(speckle_object, parameter_name, None)
-        if value not in [None, default_value]:
-            return value
+        # Detect version based on structure
+        is_v3 = hasattr(speckle_object, 'properties') and hasattr(speckle_object.properties, 'Parameters')
 
-        # If the "parameters" attribute is a Base object, extract its dynamic members
-        parameters = getattr(speckle_object, "parameters", None)
-        if parameters is None:
+        if is_v3:
+            return RevitRules._get_v3_parameter(speckle_object, parameter_name, match_mode, default_value)
+        else:
+            return RevitRules._get_v2_parameter(speckle_object, parameter_name, match_mode, default_value)
+
+    @staticmethod
+    def _get_v2_parameter(obj: Base, name: str, mode: PropertyMatchMode, default: Any) -> Any:
+        parameters = getattr(obj, "parameters", None)
+        if not parameters:
+            return default
+
+        if mode == PropertyMatchMode.STRICT:
+            return RevitRules.strict(name, parameters, default)
+
+        # For mixed/fuzzy, search directly in parameters dict
+        def search_params(param_dict: dict, search_name: str, fuzzy: bool) -> Any:
+            for key, value in param_dict.items():
+                if key.lower() == search_name.lower() or (fuzzy and search_name.lower() in key.lower()):
+                    return value.get('value') if isinstance(value, dict) else value
             return None
 
-        # Prepare a dictionary of parameter values from the dynamic members of the parameters attribute
-        parameters_dict = {
-            key: getattr(parameters, key)
-            for key in parameters.get_dynamic_member_names()
-        }
+        result = search_params(parameters, name, mode == PropertyMatchMode.FUZZY)
+        return result if result is not None else default
 
-        # Search for a direct match or a nested match in the parameters dictionary
-        param_value = parameters_dict.get(parameter_name)
-        if param_value is not None:
-            if isinstance(param_value, Base):
-                # Extract the nested value from a Base object if available
-                nested_value = getattr(param_value, "value", None)
-                if nested_value not in [None, default_value]:
-                    return nested_value
-            elif param_value not in [None, default_value]:
-                return param_value
 
-        # Use a generator to find the first matching 'value' for shared parameters stored in Base objects
-        return next(
-            (
-                getattr(p, "value", None)
-                for p in parameters_dict.values()
-                if isinstance(p, Base) and getattr(p, "name", None) == parameter_name
-            ),
-            None,
-        )
 
-    from typing import Any
+
+
+
+
+
+    @staticmethod
+    def strict(name: str,  parameters: object, default: Any) -> Any:
+
+            path_parts = name.split('.')
+            current = parameters
+
+            for part in path_parts:
+                if not current or not isinstance(current, dict):
+                    return default
+                key = next((k for k in current.keys() if k.lower() == part.lower()), None)
+                if not key:
+                    return default
+                current = current[key]
+
+            return current.get('value', current) if isinstance(current, dict) else current
+
+
+
+
+
+    @staticmethod
+    def _get_v3_parameter(obj: Base, name: str, mode: PropertyMatchMode, default: Any) -> Any:
+        parameters = obj["properties"].Parameters
+
+        if mode == PropertyMatchMode.STRICT:
+            return RevitRules.strict(name, parameters, default)
+
+
+        def search_nested(data: dict, search_name: str, fuzzy: bool) -> Any:
+            for nested_key, value in data.items():
+                if isinstance(value, dict):
+                    if 'value' in value and (nested_key.lower() == search_name.lower() or
+                                             (fuzzy and search_name.lower() in nested_key.lower())):
+                        return value['value']
+                    nested_result = search_nested(value, search_name, fuzzy)
+                    if nested_result is not None:
+                        return nested_result
+            return None
+
+        result = search_nested(parameters, name, mode == PropertyMatchMode.FUZZY)
+        return result if result is not None else default
+
+
+
 
     @staticmethod
     def is_parameter_value(
@@ -582,7 +627,7 @@ def evaluate_condition(speckle_object: Base, condition: pd.Series) -> bool:
 
 def process_rule(
         speckle_objects: list[Base], rule_group: pd.DataFrame
-) -> tuple[list[Base], list[Base]]:
+) -> tuple[list[Any], list[Any]] | tuple[list[Base], list[Base]]:
     """Processes a set of rules against Speckle objects, returning those that pass and fail.
     The first rule is used as a filter ('WHERE'), and subsequent rules as conditions ('AND').
 
@@ -623,7 +668,11 @@ def process_rule(
 
     # Evaluate each filtered object against the 'AND' conditions
     for speckle_object in filtered_objects:
-        if all(
+
+        # if filtered_objects is empty
+        if len(list(filtered_objects)) == 0:
+            return [],[]
+        elif all(
                 evaluate_condition(speckle_object, cond)
                 for _, cond in subsequent_conditions.iterrows()
         ):
@@ -636,17 +685,16 @@ def process_rule(
 
 def apply_rules_to_objects(
         speckle_objects: list[Base],
-        rules_df: pd.DataFrame,
+        grouped_rules: DataFrameGroupBy,
         automate_context: AutomationContext,
 ) -> dict[str, tuple[list[Base], list[Base]]]:
     """Applies defined rules to a list of objects and updates the automate context based on the results.
 
     Args:
         speckle_objects (List[Base]): The list of objects to which rules are applied.
-        rules_df (pd.DataFrame): The DataFrame containing rule definitions.
+        grouped_rules (pd.DataFrameGroupBy): The DataFrame containing rule definitions.
         automate_context (Any): Context manager for attaching rule results.
     """
-    grouped_rules = rules_df.groupby("Rule Number")
 
     grouped_results = {}
 
@@ -668,6 +716,14 @@ def apply_rules_to_objects(
         attach_results(
             fail_objects, rule_group.iloc[-1], rule_id_str, automate_context, False
         )
+        if len(pass_objects) == 0 and len(fail_objects) == 0:
+            automate_context.attach_info_to_objects(
+                        category=f"Rule {rule_id_str} Skipped",
+                         object_ids=["0"], # This is a hack to get a rule to report with no valid objects
+                         message=f"No objects found for rule {rule_id_str}",
+                         metadata={},
+                     )
+            # pass
 
         grouped_results[rule_id_str] = (pass_objects, fail_objects)
 
@@ -680,7 +736,7 @@ def attach_results(
         rule_info: pd.Series,
         rule_id: str,
         context: AutomationContext,
-        passed: bool,
+        passed: bool|None,
 ) -> None:
     """Attaches the results of a rule to the objects in the context.
 
@@ -691,6 +747,8 @@ def attach_results(
         context (AutomationContext): The context manager for attaching results.
         passed (bool): Whether the rule passed or failed.
     """
+
+    # passed having an explicit None value means that the rule can be marked as skipped
     if not speckle_objects:
         return
 

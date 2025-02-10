@@ -2,7 +2,8 @@
 
 Use the automation_context module to wrap your function in an Automate context helper.
 """
-
+import pandas as pd
+from pandas import DataFrame
 from speckle_automate import AutomationContext, AutomateBase
 
 from src.rules import apply_rules_to_objects
@@ -32,15 +33,20 @@ def automate_function(
     flat_list_of_objects = list(flatten_base(version_root_object))
 
     # read the rules from the spreadsheet
-    rules = read_rules_from_spreadsheet(function_inputs.spreadsheet_url)
+    rules:DataFrame = read_rules_from_spreadsheet(function_inputs.spreadsheet_url)
+
+    if (rules is None) or (len(rules) == 0):
+        automate_context.mark_run_exception("No rules defined")
+
+    grouped_rules = rules.groupby("Rule Number")
 
     # apply the rules to the objects
-    apply_rules_to_objects(flat_list_of_objects, rules, automate_context)
+    apply_rules_to_objects(flat_list_of_objects, grouped_rules, automate_context)
 
     # set the automation context view, to the original model / version view
     automate_context.set_context_view()
 
     # report success
     automate_context.mark_run_success(
-        f"Successfully applied rules to {len(flat_list_of_objects)} objects."
+        f"Successfully applied {len(grouped_rules)} rules to {len(flat_list_of_objects)} objects."
     )
