@@ -1,5 +1,4 @@
 """Run integration tests with a speckle server."""
-from speckle_automate.fixtures import *
 
 from speckle_automate import (
     AutomationContext,
@@ -7,13 +6,21 @@ from speckle_automate import (
     AutomationStatus,
     run_function,
 )
+from speckle_automate.fixtures import *  # noqa: F401, F403
 
 from src.function import automate_function
 from src.helpers import speckle_print
 from src.inputs import FunctionInputs
 
-def test_function_run(test_automation_run_data: AutomationRunData, test_automation_token: str):
 
+def test_function_run(test_automation_run_data: AutomationRunData, test_automation_token: str):
+    """Run an integration test for the automate function.
+
+    Args:
+        test_automation_run_data (AutomationRunData): The automation run data provided by sdk.
+        test_automation_token (str): The automation token.
+
+    """
     speckle_print(str(test_automation_run_data))
     speckle_print(str(test_automation_token))
 

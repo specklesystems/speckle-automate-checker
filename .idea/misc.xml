@@ -1,10 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="Black">
-    <option name="enabledOnReformat" value="true" />
-    <option name="enabledOnSave" value="true" />
-    <option name="executionMode" value="BINARY" />
-    <option name="pathToExecutable" value="\\wsl.localhost\UbuntuDev\mnt\d\Repos\Speckle Automate\Checker\.venv\bin\black" />
     <option name="sdkName" value="WSL Checker" />
   </component>
   <component name="ProjectRootManager" version="2" project-jdk-name="uv (Checker)" project-jdk-type="Python SDK" />
