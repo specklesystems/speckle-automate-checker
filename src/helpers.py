@@ -1,14 +1,14 @@
 """Helper module for a speckle object tree flattening."""
 
-from collections.abc import Iterable
-from typing import Optional, Tuple, List
+from collections.abc import Generator, Iterable
+from typing import Any
 
 from specklepy.objects import Base
 from specklepy.objects.other import Instance, Transform
 
 
 def speckle_print(log_string: str = "banana") -> None:
-
+    """Print a string to the console with a green color."""
     print("\033[92m" + str(log_string) + "\033[0m")
 
 
@@ -19,6 +19,24 @@ def flatten_base(base: Base) -> Iterable[Base]:
         for element in elements:
             yield from flatten_base(element)
     yield base
+
+
+def get_item(obj: Base | dict[str, Any], key, default=None):
+    """Get an item from a dictionary or an object with a default value."""
+    if isinstance(obj, dict):  # If it's a dictionary
+        return obj.get(key, default)
+    elif hasattr(obj, key):  # If it's an object with the attribute
+        return getattr(obj, key, default)
+    return default  # Return default if it's neither a dict nor an object with the attribute
+
+
+def has_item(obj: Base | dict[str, Any], key: str) -> bool:
+    """Check if an object has a key or an attribute."""
+    if isinstance(obj, dict):
+        return key in obj
+    elif hasattr(obj, key):
+        return True
+    return False
 
 
 def flatten_base_thorough(base: Base, parent_type: str = None) -> Iterable[Base]:
@@ -51,9 +69,7 @@ def flatten_base_thorough(base: Base, parent_type: str = None) -> Iterable[Base]
                 print(category)
                 if category.startswith("@"):
                     category_object: Base = getattr(base, category)[0]
-                    yield from flatten_base_thorough(
-                        category_object, category_object.speckle_type
-                    )
+                    yield from flatten_base_thorough(category_object, category_object.speckle_type)
 
         except KeyError:
             pass
@@ -63,11 +79,13 @@ def flatten_base_thorough(base: Base, parent_type: str = None) -> Iterable[Base]
 
 def extract_base_and_transform(
     base: Base,
-    inherited_instance_id: Optional[str] = None,
-    transform_list: Optional[List[Transform]] = None,
-) -> Tuple[Base, str, Optional[List[Transform]]]:
-    """
-    Traverses Speckle object hierarchies to yield `Base` objects and their transformations.
+    inherited_instance_id: str | None = None,
+    transform_list: list[Transform] | None = None,
+) -> Generator[
+    Base | str | list[Transform] | None | tuple[Base, Any | None, list[Transform] | None | list[Any]], Any | None, None
+]:
+    """Traverses Speckle object hierarchies to yield `Base` objects and their transformations.
+
     Tailored to Speckle's AEC data structures, it covers the newer hierarchical structures
     with Collections and also  with patterns found in older Revit specific data.
 
@@ -91,9 +109,7 @@ def extract_base_and_transform(
         if base.transform:
             transform_list.append(base.transform)
         if base.definition:
-            yield from extract_base_and_transform(
-                base.definition, current_id, transform_list.copy()
-            )
+            yield from extract_base_and_transform(base.definition, current_id, transform_list.copy())
     else:
         # Initial yield for the current `Base` object.
         yield base, current_id, transform_list
@@ -103,9 +119,7 @@ def extract_base_and_transform(
         for element in elements_attr:
             if isinstance(element, Base):
                 # Recurse into each `Base` object within 'elements' or '@elements'.
-                yield from extract_base_and_transform(
-                    element, current_id, transform_list.copy()
-                )
+                yield from extract_base_and_transform(element, current_id, transform_list.copy())
 
         # Recursively process '@'-prefixed properties that are Base objects with 'elements'.
         # This is a common pattern in older Speckle data models, such as those used for Revit commits.
@@ -114,6 +128,4 @@ def extract_base_and_transform(
                 attr_value = getattr(base, attr_name)
                 # If the attribute is a Base object containing 'elements', recurse into it.
                 if isinstance(attr_value, Base) and hasattr(attr_value, "elements"):
-                    yield from extract_base_and_transform(
-                        attr_value, current_id, transform_list.copy()
-                    )
+                    yield from extract_base_and_transform(attr_value, current_id, transform_list.copy())
