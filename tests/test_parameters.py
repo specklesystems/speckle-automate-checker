@@ -29,7 +29,8 @@ def load_test_objects(v2_wall: Any, v3_wall: Any) -> tuple[Base, Base]:
     v2_obj = operations.receive("cdb18060dc48281909e94f0f1d8d3cc0", transport)
     v3_obj = operations.receive("46f06fef727d64a0bbcbd7ced51e0cd2", transport)
 
-    return v2_wall, v3_wall
+    # return v2_wall, v3_wall
+    return v2_obj, v3_obj
 
 
 @pytest.fixture
@@ -53,7 +54,7 @@ def test_deserialization_structure(test_objects):
     # Test v3 structure
     assert hasattr(v3_obj, "properties")
     assert v3_obj["properties"] is not None
-    assert "Parameters" in v3_obj["properties"].get_member_names()
+    assert "Parameters" in v3_obj["properties"].keys()
 
 
 def test_v2_parameter_exists(test_objects):
@@ -273,3 +274,51 @@ def test_v3_boolean_parameters(test_objects):
     # Test false values
     assert PropertyRules.is_parameter_value_false(v3_obj, "top is attached")
     assert PropertyRules.is_parameter_value_false(v3_obj, "Top is Attached")
+
+
+def test_stringified_numbers():
+    """Test stringified numbers comparisons."""
+    assert PropertyRules.is_equal_value("1001.1", 1001.1)  # Stringified float vs float (True)
+    assert PropertyRules.is_equal_value("1001", 1001)  # Stringified int vs int (True)
+    assert PropertyRules.is_equal_value("1001", "1001")  # Stringified int vs stringified int (True)
+    assert PropertyRules.is_equal_value("1001.0001", 1001.0001)  # Stringified float vs float (True)
+
+    assert not PropertyRules.is_equal_value("1001.1", "1001.2")  # Different values (False)
+    assert not PropertyRules.is_equal_value("1001", "1002")  # Different stringified ints (False)
+
+    # Case with stringified numbers that are non-numeric
+    assert not PropertyRules.is_equal_value("1001abc", 1001)  # Invalid numeric string (False)
+    assert not PropertyRules.is_equal_value("1001.1abc", 1001.1)  # Invalid numeric string (False)
+
+
+def test_stringified_float_comparison():
+    """Test stringified float comparisons."""
+    assert PropertyRules.is_equal_value("1001.1", 1001.1)  # Stringified float vs float (True)
+    assert PropertyRules.is_equal_value("1001.1", "1001.1")  # Stringified float vs stringified float (True)
+    assert not PropertyRules.is_equal_value("1001.1", "1001.2")  # Different values (False)
+
+
+def test_case_insensitive_equals():
+    """Test case-insensitive comparison."""
+    assert PropertyRules.is_equal_value("Hello", "hello", case_sensitive=False)  # Case-insensitive (True)
+    assert not PropertyRules.is_equal_value("Hello", "hello", case_sensitive=True)  # Case-sensitive (False)
+    assert PropertyRules.is_equal_value("HELLO", "HELLO", case_sensitive=False)  # Case-insensitive (True)
+
+
+def test_case_sensitive_identical_equals():
+    """Test case-sensitive exact match."""
+    assert PropertyRules.is_identical_value("Hello", "Hello")  # Exact match (True)
+    assert not PropertyRules.is_identical_value("Hello", "hello")  # Case-sensitive (False)
+    assert not PropertyRules.is_identical_value("Hello", "HelloWorld")  # Different values (False)
+
+
+def test_floating_point_equals():
+    """Test floating-point equality with precision tolerance."""
+    assert PropertyRules.is_equal_value(1001.000001, 1001.000002)  # Minor difference (True)
+    assert not PropertyRules.is_equal_value(1001.000001, 1001.1)  # Larger difference (False)
+
+
+def test_floating_point_identical_equals():
+    """Test exact floating-point equality without tolerance."""
+    assert PropertyRules.is_identical_value(1001.0, 1001.0)  # Exact match (True)
+    assert not PropertyRules.is_identical_value(1001.0, 1001.000001)  # Slight difference (False)
