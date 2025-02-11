@@ -595,6 +595,18 @@ wheels = [
 ]
 
 [[package]]
+name = "pytest-assertcount"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/84/9f/e6eee30903096887e2fa359163a4ed0969dfd81b301400f5c46fe3e99a41/pytest-assertcount-1.0.0.tar.gz", hash = "sha256:e8271a284e337f89a28789790e68faa18ab8d5e1ca9aad5bd439a672b836a76b", size = 2652 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/61/8d/4415383d305c7d79271e8e349dedc62d7a2a00f997d894b12a18b3ec487a/pytest_assertcount-1.0.0-py3-none-any.whl", hash = "sha256:08a2945248f666787ee1413736fff91875e355aee23bf03900d1438bd4bf81ec", size = 3287 },
+]
+
+[[package]]
 name = "python-dateutil"
 version = "2.9.0.post0"
 source = { registry = "https://pypi.org/simple" }
@@ -752,6 +764,7 @@ dependencies = [
     { name = "more-itertools" },
     { name = "pandas" },
     { name = "pydantic" },
+    { name = "pytest-assertcount" },
     { name = "python-dotenv" },
     { name = "python-levenshtein" },
     { name = "specklepy" },
@@ -771,6 +784,7 @@ requires-dist = [
     { name = "more-itertools", specifier = ">=10.6.0" },
     { name = "pandas", specifier = ">=2.2.3" },
     { name = "pydantic", specifier = "==2.10.6" },
+    { name = "pytest-assertcount", specifier = ">=1.0.0" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
     { name = "python-levenshtein", specifier = ">=0.26.1" },
     { name = "specklepy", specifier = ">=2.21.2" },

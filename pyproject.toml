@@ -17,6 +17,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "pytest-assertcount>=1.0.0",
     "black>=25.1.0",
     "mypy>=1.15.0",
     "pydantic-settings>=2.7.1",
