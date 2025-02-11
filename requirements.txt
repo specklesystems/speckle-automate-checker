@@ -32,6 +32,7 @@ pydantic==2.10.6
 pydantic-core==2.27.2
 pydantic-settings==2.7.1
 pytest==8.3.4
+pytest-assertcount==1.0.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
 python-levenshtein==0.26.1
