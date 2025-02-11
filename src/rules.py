@@ -1,3 +1,4 @@
+import math
 import re
 from typing import Any
 
@@ -310,3 +311,58 @@ class PropertyRules:
     def get_category_value(speckle_object: Base) -> str:
         """Get object's category value."""
         return PropertyRules.get_parameter_value(speckle_object, "category")
+
+    @staticmethod
+    def is_equal_value(value1: Any, value2: Any, case_sensitive: bool = False) -> bool:
+        """Compares two values with more robust handling for various types and tolerances.
+
+        Args:
+            value1: The first value to compare (can be a float, string, int, etc.).
+            value2: The second value to compare (can be a float, string, int, etc.).
+            case_sensitive (bool): Whether to perform case-sensitive comparison for strings. Default is False.
+
+        Returns:
+            bool: True if values are considered equal, False otherwise.
+        """
+        # Handle case where one value is a string that can be interpreted as a number
+        if isinstance(value1, str) and value1.replace(".", "", 1).isdigit():
+            value1 = float(value1)
+
+        if isinstance(value2, str) and value2.replace(".", "", 1).isdigit():
+            value2 = float(value2)
+
+        # For strings: Allow case insensitivity if specified
+        if isinstance(value1, str) and isinstance(value2, str):
+            if not case_sensitive:
+                return value1.lower() == value2.lower()
+            return value1 == value2
+
+        # For floats and ints, we check using math.isclose for floating-point precision
+        if isinstance(value1, (float, int)) and isinstance(value2, (float, int)):
+            return math.isclose(value1, value2, abs_tol=1e-6)
+
+        # Fallback: Use regular equality for other cases
+        return value1 == value2
+
+    @staticmethod
+    def is_not_equal_value(value1: Any, value2: Any) -> bool:
+        """Checks if two values are not equal."""
+        return not PropertyRules.is_equal_value(value1, value2)
+
+    @staticmethod
+    def is_identical_value(value1: Any, value2: Any) -> bool:
+        """Checks if two values are exactly identical.
+
+        Considering case-sensitivity and no tolerance for floating-point errors.
+        """
+        if isinstance(value1, str) and isinstance(value2, str):
+            return value1 == value2  # Case-sensitive comparison for strings
+        elif isinstance(value1, float) and isinstance(value2, float):
+            # No tolerance for floating-point errors
+            return value1 == value2
+        return value1 == value2
+
+    @staticmethod
+    def is_not_identical_value(value1: Any, value2: Any) -> bool:
+        """Checks if two values are not identical."""
+        return not PropertyRules.is_identical_value(value1, value2)
