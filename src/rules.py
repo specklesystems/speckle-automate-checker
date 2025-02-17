@@ -68,11 +68,23 @@ class PropertyRules:
     @staticmethod
     def convert_revit_boolean(value: Any) -> Any:
         """Convert Revit-style Yes/No strings to boolean values."""
+        # Handle None case
+        if value is None:
+            return None
+
+        # Already a boolean
+        if isinstance(value, bool):
+            return value
+
+        # Handle string case with proper type checking
         if isinstance(value, str):
-            if value.lower() == "yes":
+            value_lower = value.lower()
+            if value_lower == "yes":
                 return True
-            if value.lower() == "no":
+            if value_lower == "no":
                 return False
+
+        # Return original value if no conversion applied
         return value
 
     @staticmethod
@@ -127,24 +139,46 @@ class PropertyRules:
         return False, None
 
     @staticmethod
-    def find_property(root: Any, search_path: str) -> tuple[bool, Any]:
-        """Find a property by searching through nested objects."""
+    def find_property(root: Any, search_path: str, get_raw: bool = False) -> tuple[bool, Any]:
+        """Find a property by searching through nested objects.
+
+        Args:
+            root: The root object to search
+            search_path: Path to the property to find
+            get_raw: Whether to return raw values without conversion
+
+        Returns:
+            Tuple of (found: bool, value: Any)
+        """
         # Normalize the search path
         norm_path = PropertyRules.normalize_path(search_path)
         parts = norm_path.split(".")
 
         # Search through object hierarchy
-        def traverse(obj: Any) -> tuple[bool, Any]:
+        def traverse(obj: Any, visited: set[int] | None = None) -> tuple[bool, Any]:
+            if visited is None:
+                visited = set()
+
+            # Skip if already visited or not a container type
+            if not isinstance(obj, dict | Base):
+                return False, None
+
+            obj_id = id(obj)
+            if obj_id in visited:
+                return False, None
+
+            visited.add(obj_id)
+
             # Try direct path match
             found, value = PropertyRules.search_obj(obj, parts)
             if found:
-                return True, PropertyRules.get_obj_value(value)
+                return True, PropertyRules.get_obj_value(value, get_raw)
 
             # Handle dict
             if isinstance(obj, dict):
                 for key, val in obj.items():
                     if isinstance(val, dict | Base):
-                        found, value = traverse(val)
+                        found, value = traverse(val, visited)
                         if found:
                             return True, value
 
@@ -154,10 +188,11 @@ class PropertyRules:
                     if not key.startswith("_"):
                         val = getattr(obj, key)
                         if isinstance(val, dict | Base):
-                            found, value = traverse(val)
+                            found, value = traverse(val, visited)
                             if found:
                                 return True, value
 
+            visited.remove(obj_id)  # Clean up visited set
             return False, None
 
         return traverse(root)
@@ -173,6 +208,7 @@ class PropertyRules:
         speckle_object: Base,
         parameter_name: str,
         default_value: Any = None,
+        get_raw: bool = False,
     ) -> Any:
         """Get a parameter value from the Speckle object using strict path matching.
 
@@ -180,11 +216,12 @@ class PropertyRules:
             speckle_object: The Speckle object to search
             parameter_name: Exact parameter path to find
             default_value: Value to return if parameter not found
+            get_raw: Whether to return raw values without conversion
 
         Returns:
             The parameter value if found using exact path matching, otherwise default_value
         """
-        found, value = PropertyRules.find_property(speckle_object, parameter_name)
+        found, value = PropertyRules.find_property(speckle_object, parameter_name, get_raw)
         return value if found else default_value
 
     @staticmethod
@@ -264,7 +301,7 @@ class PropertyRules:
         parameter_value = PropertyRules.get_parameter_value(speckle_object, parameter_name)
 
         if isinstance(value_list, str):
-            value_list = [value.strip() for value in value_list.split(",")]
+            value_list = [v.strip() for v in value_list.split(",") if v.strip()]
 
         def is_value_in_list(value: Any, my_list: Any) -> bool:
             if isinstance(my_list, list):
@@ -313,21 +350,64 @@ class PropertyRules:
         return PropertyRules.get_parameter_value(speckle_object, "category")
 
     @staticmethod
-    def is_equal_value(value1: Any, value2: Any, case_sensitive: bool = False) -> bool:
-        """Compares two values with more robust handling for various types and tolerances.
+    def _try_boolean_comparison(value1: Any, value2: Any, allow_yes_no: bool) -> tuple[bool, bool]:
+        """Attempts to compare two values as booleans."""
+
+        def strict_convert_boolean(value: Any) -> Any:
+            """Convert 'True'/'False' strings to booleans, and use `convert_revit_boolean` for Yes/No."""
+            if value is None:
+                return None
+            if isinstance(value, bool):
+                return value
+            if isinstance(value, str):
+                value_lower = value.strip().lower()
+                if value_lower == "true":
+                    return True
+                if value_lower == "false":
+                    return False
+                # Use convert_revit_boolean for Yes/No conversion
+                return PropertyRules.convert_revit_boolean(value) if allow_yes_no else value
+
+            return value
+
+        bool1 = strict_convert_boolean(value1)
+        bool2 = strict_convert_boolean(value2)
+
+        # If both are valid booleans, compare them
+        if isinstance(bool1, bool) and isinstance(bool2, bool):
+            return True, bool1 == bool2
+
+        return False, False
+
+    @staticmethod
+    def _compare_values(
+        value1: Any,
+        value2: Any,
+        case_sensitive: bool = False,
+        tolerance: float = 1e-6,
+        allow_yes_no_bools: bool = True,
+        use_exact: bool = False,
+    ) -> bool:
+        """Core logic for comparing two values with type handling and tolerance.
 
         Args:
-            value1: The first value to compare (can be a float, string, int, etc.).
-            value2: The second value to compare (can be a float, string, int, etc.).
-            case_sensitive (bool): Whether to perform case-sensitive comparison for strings. Default is False.
-
+            value1: First value to compare
+            value2: Second value to compare
+            case_sensitive: Whether to perform case-sensitive string comparison
+            tolerance: Tolerance for floating point comparisons
+            allow_yes_no_bools: Whether to convert Yes/No strings to booleans when comparing with boolean values
+            use_exact: Whether to use exact equality for numeric comparisons
         Returns:
-            bool: True if values are considered equal, False otherwise.
+            bool: True if values are considered equal, False otherwise
         """
+        # Try boolean comparison first
+        can_compare, result = PropertyRules._try_boolean_comparison(value1, value2, allow_yes_no_bools)
+        if can_compare:
+            return result
+
         # Handle case where one value is a string that can be interpreted as a number
         if isinstance(value1, str) and value1.replace(".", "", 1).isdigit():
             value1 = float(value1)
-
         if isinstance(value2, str) and value2.replace(".", "", 1).isdigit():
             value2 = float(value2)
 
@@ -337,32 +417,89 @@ class PropertyRules:
                 return value1.lower() == value2.lower()
             return value1 == value2
 
-        # For floats and ints, we check using math.isclose for floating-point precision
-        if isinstance(value1, (float, int)) and isinstance(value2, (float, int)):
-            return math.isclose(value1, value2, abs_tol=1e-6)
+        # For floats and ints, check using math.isclose for floating-point precision
+        if isinstance(value1, float | int) and isinstance(value2, float | int):
+            if use_exact:
+                return value1 == value2  # Strict equality for identical comparisons
+            return math.isclose(value1, value2, abs_tol=tolerance)
 
         # Fallback: Use regular equality for other cases
         return value1 == value2
 
     @staticmethod
-    def is_not_equal_value(value1: Any, value2: Any) -> bool:
-        """Checks if two values are not equal."""
-        return not PropertyRules.is_equal_value(value1, value2)
+    def is_equal_value(
+        speckle_object: Base,
+        parameter_name: str,
+        value_to_match: Any,
+        case_sensitive: bool = False,
+        tolerance: float = 1e-6,
+    ) -> bool:
+        """Compares a parameter value from a Speckle object with the provided value.
 
-    @staticmethod
-    def is_identical_value(value1: Any, value2: Any) -> bool:
-        """Checks if two values are exactly identical.
+        Args:
+            speckle_object (Base): The Speckle object containing the parameter
+            parameter_name (str): Name of the parameter to compare
+            value_to_match: The value to compare against (float, string, int, etc.)
+            case_sensitive (bool): Whether to perform case-sensitive comparison for strings
+            tolerance (float): Tolerance for floating point comparisons
 
-        Considering case-sensitivity and no tolerance for floating-point errors.
+        Returns:
+            bool: True if values are considered equal, False otherwise
         """
-        if isinstance(value1, str) and isinstance(value2, str):
-            return value1 == value2  # Case-sensitive comparison for strings
-        elif isinstance(value1, float) and isinstance(value2, float):
-            # No tolerance for floating-point errors
-            return value1 == value2
-        return value1 == value2
+        parameter_value = PropertyRules.get_parameter_value(speckle_object, parameter_name)
+        if parameter_value is None:
+            return False
+
+        return PropertyRules._compare_values(
+            parameter_value, value_to_match, case_sensitive, tolerance, allow_yes_no_bools=True
+        )
 
     @staticmethod
-    def is_not_identical_value(value1: Any, value2: Any) -> bool:
-        """Checks if two values are not identical."""
-        return not PropertyRules.is_identical_value(value1, value2)
+    def is_not_equal_value(
+        speckle_object: Base,
+        parameter_name: str,
+        value_to_match: Any,
+        case_sensitive: bool = False,
+        tolerance: float = 1e-6,
+    ) -> bool:
+        """Checks if a parameter value from a Speckle object is not equal to the provided value.
+
+        Args:
+            speckle_object (Base): The Speckle object containing the parameter
+            parameter_name (str): Name of the parameter to compare
+            value_to_match: The value to compare against (float, string, int, etc.)
+            case_sensitive (bool): Whether to perform case-sensitive comparison for strings
+            tolerance (float): Tolerance for floating point comparisons
+
+        Returns:
+            bool: True if values are not equal or parameter doesn't exist, False if they are equal
+        """
+        parameter_value = PropertyRules.get_parameter_value(speckle_object, parameter_name)
+        if parameter_value is None:
+            return True  # Non-existent parameters are considered not equal
+
+        return not PropertyRules._compare_values(
+            parameter_value, value_to_match, case_sensitive, tolerance, allow_yes_no_bools=True
+        )
+
+    @staticmethod
+    def is_identical_value(speckle_object: Base, parameter_name: str, value_to_match: Any) -> bool:
+        """Checks if a parameter value from a Speckle object is exactly identical to the provided value.
+
+        Uses strict comparison with no type coercion, case sensitivity, or Yes/No conversion.
+
+        Args:
+            speckle_object (Base): The Speckle object containing the parameter
+            parameter_name (str): Name of the parameter to compare
+            value_to_match: The value to compare against
+
+        Returns:
+            bool: True if values are identical, False otherwise
+        """
+        parameter_value = PropertyRules.get_parameter_value(speckle_object, parameter_name, get_raw=True)
+        if parameter_value is None:
+            return False
+
+        return PropertyRules._compare_values(
+            parameter_value, value_to_match, case_sensitive=True, tolerance=0, allow_yes_no_bools=False, use_exact=True
+        )
