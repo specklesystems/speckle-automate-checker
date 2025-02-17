@@ -1,16 +1,15 @@
-# We use the official Python 3.11 image as our base image and will add our code to it. For more details, see https://hub.docker.com/_/python
-FROM python:3.13-slim
+# Use the official Python 3.11 slim image as the base
+FROM python:3.11-slim
 
-# We install poetry to generate a list of dependencies which will be required by our application
-RUN pip install poetry==1.8.4
-
-# We set the working directory to be the /home/speckle directory; all of our files will be copied here.
+# Set the working directory inside the container
 WORKDIR /home/speckle
 
-# Copy all of our code and assets from the local directory into the /home/speckle directory of the container.
-# We also ensure that the user 'speckle' owns these files, so it can access them
-# This assumes that the Dockerfile is in the same directory as the rest of the code
+# Copy the application files to the working directory
 COPY . /home/speckle
 
-# Using poetry, we generate a list of requirements, save them to requirements.txt, and then use pip to install them
-RUN poetry export --format requirements.txt --output /home/speckle/requirements.txt && pip install --requirement /home/speckle/requirements.txt
+# Upgrade pip and install dependencies using requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Set the entrypoint for running the Speckle function
+CMD ["python", "-u", "main.py", "run"]
