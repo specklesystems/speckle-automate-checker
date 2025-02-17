@@ -43,282 +43,362 @@ def test_deserialization_structure(test_objects):
     """Test that objects are properly deserialized with correct structure."""
     v2_obj, v3_obj = test_objects
 
-    # Test basic object properties
-    assert isinstance(v2_obj, Base)
-    assert isinstance(v3_obj, Base)
+    # Check base class type
+    for obj in [v2_obj, v3_obj]:
+        assert isinstance(obj, Base), f"Expected {obj} to be an instance of Base"
 
-    # Test v2 structure
-    assert hasattr(v2_obj, "parameters")
-    assert v2_obj["parameters"] is not None
+    # Check v2 structure
+    assert hasattr(v2_obj, "parameters"), "v2_obj should have 'parameters' attribute"
+    assert v2_obj["parameters"] is not None, "v2_obj['parameters'] should not be None"
 
-    # Test v3 structure
-    assert hasattr(v3_obj, "properties")
-    assert v3_obj["properties"] is not None
-    assert "Parameters" in v3_obj["properties"].keys()
+    # Check v3 structure
+    assert hasattr(v3_obj, "properties"), "v3_obj should have 'properties' attribute"
+    assert v3_obj["properties"] is not None, "v3_obj['properties'] should not be None"
+    assert "Parameters" in v3_obj["properties"], "'Parameters' key should exist in v3_obj['properties']"
 
 
-def test_v2_parameter_exists(test_objects):
-    """Test parameter existence checking in both v2 and v3 objects."""
+@pytest.mark.parametrize(
+    "param_name, expected_result",
+    [
+        ("category", True),  # Test parameters that should exist
+        ("WALL_ATTR_WIDTH_PARAM", True),  # Test nested parameters
+        ("WALL_ATTR_WIDTH_PARAM.value", True),
+        ("WALL_ATTR_WIDTH_PARAM.id", True),
+        ("WALL_ATTR_WIDTH_PARAM.units", True),
+        ("non_existent_param", False),  # Test non-existent parameters
+    ],
+)
+def test_v2_parameter_exists(test_objects, param_name, expected_result):
+    """Test parameter existence checking in v2 objects."""
     v2_obj, _ = test_objects
-
-    # Test parameters that should exist in both
-    assert PropertyRules.has_parameter(v2_obj, "category")
-
-    # Test nested parameters
-    assert PropertyRules.has_parameter(v2_obj, "WALL_ATTR_WIDTH_PARAM")
-    assert PropertyRules.has_parameter(v2_obj, "WALL_ATTR_WIDTH_PARAM.value")
-
-    assert PropertyRules.get_parameter_value(v2_obj, "WALL_ATTR_WIDTH_PARAM.id")
-    assert PropertyRules.get_parameter_value(v2_obj, "WALL_ATTR_WIDTH_PARAM.value")
-    assert PropertyRules.get_parameter_value(v2_obj, "WALL_ATTR_WIDTH_PARAM")
-    assert PropertyRules.get_parameter_value(v2_obj, "WALL_ATTR_WIDTH_PARAM.units")
-
-    # Test non-existent parameters
-    assert not PropertyRules.has_parameter(v2_obj, "non_existent_param")
+    assert PropertyRules.has_parameter(v2_obj, param_name) == expected_result
 
 
-def test_v3_parameter_exists(test_objects):
-    """Test parameter existence checking in both v2 and v3 objects."""
+@pytest.mark.parametrize(
+    "param_name",
+    [
+        "WALL_ATTR_WIDTH_PARAM.id",
+        "WALL_ATTR_WIDTH_PARAM.value",
+        "WALL_ATTR_WIDTH_PARAM",
+        "WALL_ATTR_WIDTH_PARAM.units",
+    ],
+)
+def test_v2_parameter_value_retrieval(test_objects, param_name):
+    """Test parameter value retrieval in v2 objects."""
+    v2_obj, _ = test_objects
+    assert PropertyRules.get_parameter_value(v2_obj, param_name)
+
+
+@pytest.mark.parametrize(
+    "param_name, expected_result",
+    [
+        ("category", True),  # Test parameters that should exist
+        ("Width", True),  # Test nested parameters
+        ("non_existent_param", False),  # Test non-existent parameters
+    ],
+)
+def test_v3_parameter_exists(test_objects, param_name, expected_result):
+    """Test parameter existence checking in v3 objects."""
     _, v3_obj = test_objects
-
-    # Test parameters that should exist in both
-    assert PropertyRules.has_parameter(v3_obj, "category")
-
-    # Test nested parameters
-    assert PropertyRules.has_parameter(v3_obj, "Width")
-
-    # Test non-existent parameters
-    assert not PropertyRules.has_parameter(v3_obj, "non_existent_param")
+    assert PropertyRules.has_parameter(v3_obj, param_name) == expected_result
 
 
-def test_v3_parameter_search_equivalence(test_objects):
-    """Test parameter existence checking in both v2 and v3 objects."""
+@pytest.mark.parametrize(
+    "param_name_1, param_name_2",
+    [
+        (
+            "properties.Parameters.Instance Parameters.Dimensions.Length.value",
+            "Instance Parameters.Dimensions.Length",
+        ),
+    ],
+)
+def test_v3_parameter_search_equivalence(test_objects, param_name_1, param_name_2):
+    """Test parameter existence checking equivalence in v3 objects."""
     _, v3_obj = test_objects
-
-    assert PropertyRules.get_parameter_value(
-        v3_obj, "properties.Parameters.Instance Parameters.Dimensions.Length.value"
-    ) == PropertyRules.get_parameter_value(v3_obj, "Instance Parameters.Dimensions.Length")
-
-
-def test_parameter_value_retrieval(test_objects):
-    """Test parameter value retrieval from both v2 and v3 objects."""
-    v2_obj, v3_obj = test_objects
-
-    # Test direct parameters
-    assert PropertyRules.get_parameter_value(v2_obj, "category") == "Walls"
-    assert PropertyRules.get_parameter_value(v3_obj, "category") == "Walls"
-
-    # Test nested parameters - using both internal and friendly names
-    # For v2: parameters > WALL_ATTR_WIDTH_PARAM > value
-    # For v3: properties > Parameters > Type Parameters > Construction > Width > value
-    assert PropertyRules.get_parameter_value(v2_obj, "WALL_ATTR_WIDTH_PARAM") == 300
-    assert PropertyRules.get_parameter_value(v3_obj, "Construction.Width") == 300
-
-    # Test parameters with units
-    # For v2: parameters > CURVE_ELEM_LENGTH > value
-    # For v3: properties > Parameters > Instance Parameters > Dimensions > Length > value
-    assert PropertyRules.get_parameter_value(v2_obj, "CURVE_ELEM_LENGTH") == 5300.000000000001
-    assert PropertyRules.get_parameter_value(v3_obj, "Instance Parameters.Dimensions.Length") == 5300.000000000001
-
-    # Test non-existent parameters
-    # Use strict mode to avoid partial matches
-    assert PropertyRules.get_parameter_value(v2_obj, "parameters.non_existent", default_value="default") == "default"
-    assert (
-        PropertyRules.get_parameter_value(v3_obj, "properties.Parameters.non_existent", default_value="default")
-        == "default"
+    assert PropertyRules.get_parameter_value(v3_obj, param_name_1) == PropertyRules.get_parameter_value(
+        v3_obj, param_name_2
     )
 
 
-def test_v2_parameter_value_matching(test_objects):
-    """Test parameter value matching in both v2 and v3 objects."""
+@pytest.mark.parametrize(
+    "obj_version, param_name, expected_value, default_value",
+    [
+        # Test direct parameters
+        ("v2", "category", "Walls", None),
+        ("v3", "category", "Walls", None),
+        # Test nested parameters - using both internal and friendly names
+        ("v2", "WALL_ATTR_WIDTH_PARAM", 300, None),
+        ("v3", "Construction.Width", 300, None),
+        # Test parameters with units
+        ("v2", "CURVE_ELEM_LENGTH", 5300.000000000001, None),
+        ("v3", "Instance Parameters.Dimensions.Length", 5300.000000000001, None),
+        # Test non-existent parameters with a default value
+        ("v2", "parameters.non_existent", "default", "default"),
+        ("v3", "properties.Parameters.non_existent", "default", "default"),
+    ],
+)
+def test_parameter_value_retrieval(test_objects, obj_version, param_name, expected_value, default_value):
+    """Test parameter value retrieval from both v2 and v3 objects."""
+    v2_obj, v3_obj = test_objects
+    obj = v2_obj if obj_version == "v2" else v3_obj
+    result = PropertyRules.get_parameter_value(obj, param_name, default_value=default_value)
+    assert result == expected_value
+
+
+@pytest.mark.parametrize(
+    "param_name, expected_value, expected_result",
+    [
+        ("category", "Walls", True),  # Test exact match
+        ("WALL_ATTR_WIDTH_PARAM", 300, True),  # Test numeric match
+        ("category", "Windows", False),  # Test non-match
+    ],
+)
+def test_v2_parameter_value_matching(test_objects, param_name, expected_value, expected_result):
+    """Test parameter value matching in v2 objects."""
     v2_obj, _ = test_objects
-
-    # Test exact matches
-    assert PropertyRules.is_parameter_value(v2_obj, "category", "Walls")
-
-    # Test numeric matches
-    assert PropertyRules.is_parameter_value(v2_obj, "WALL_ATTR_WIDTH_PARAM", 300)
-
-    # Test non-matches
-    assert not PropertyRules.is_parameter_value(v2_obj, "category", "Windows")
+    assert PropertyRules.is_parameter_value(v2_obj, param_name, expected_value) == expected_result
 
 
-def test_v3_parameter_value_matching(test_objects):
-    """Test parameter value matching in both v2 and v3 objects."""
+@pytest.mark.parametrize(
+    "param_name, expected_value, expected_result",
+    [
+        ("category", "Walls", True),  # Test exact match
+        ("Width", 300, True),  # Test numeric match
+        ("category", "Windows", False),  # Test non-match
+    ],
+)
+def test_v3_parameter_value_matching(test_objects, param_name, expected_value, expected_result):
+    """Test parameter value matching in v3 objects."""
     _, v3_obj = test_objects
-
-    # Test exact matches
-    assert PropertyRules.is_parameter_value(v3_obj, "category", "Walls")
-
-    # Test numeric matches
-    assert PropertyRules.is_parameter_value(v3_obj, "Width", 300)
-
-    # Test non-matches
-    assert not PropertyRules.is_parameter_value(v3_obj, "category", "Windows")
+    assert PropertyRules.is_parameter_value(v3_obj, param_name, expected_value) == expected_result
 
 
-def test_v2_parameter_numeric_comparisons(test_objects):
-    """Test numeric parameter comparisons in both v2 and v3 objects."""
+@pytest.mark.parametrize(
+    "comparison_func, param_name, value, expected_result",
+    [
+        (PropertyRules.is_parameter_value_greater_than, "WALL_ATTR_WIDTH_PARAM", "200", True),  # Test greater than
+        (PropertyRules.is_parameter_value_less_than, "WALL_ATTR_WIDTH_PARAM", "400", True),  # Test less than
+        (PropertyRules.is_parameter_value_in_range, "WALL_ATTR_WIDTH_PARAM", "200,400", True),  # Test in range
+    ],
+)
+def test_v2_parameter_numeric_comparisons(test_objects, comparison_func, param_name, value, expected_result):
+    """Test numeric parameter comparisons in v2 objects."""
     v2_obj, _ = test_objects
-
-    # Test greater than
-    assert PropertyRules.is_parameter_value_greater_than(v2_obj, "WALL_ATTR_WIDTH_PARAM", "200")
-
-    # Test less than
-    assert PropertyRules.is_parameter_value_less_than(v2_obj, "WALL_ATTR_WIDTH_PARAM", "400")
-
-    # Test in range
-    assert PropertyRules.is_parameter_value_in_range(v2_obj, "WALL_ATTR_WIDTH_PARAM", "200,400")
+    assert comparison_func(v2_obj, param_name, value) == expected_result
 
 
-def test_v3_parameter_numeric_comparisons(test_objects):
-    """Test numeric parameter comparisons in both v2 and v3 objects."""
+@pytest.mark.parametrize(
+    "comparison_func, param_name, value, expected_result",
+    [
+        (PropertyRules.is_parameter_value_greater_than, "Width", "200", True),  # Test greater than
+        (PropertyRules.is_parameter_value_less_than, "Width", "400", True),  # Test less than
+        (PropertyRules.is_parameter_value_in_range, "Width", "200,400", True),  # Test in range
+    ],
+)
+def test_v3_parameter_numeric_comparisons(test_objects, comparison_func, param_name, value, expected_result):
+    """Test numeric parameter comparisons in v3 objects."""
     _, v3_obj = test_objects
-
-    # Test greater than
-    assert PropertyRules.is_parameter_value_greater_than(v3_obj, "Width", "200")
-
-    # Test less than
-    assert PropertyRules.is_parameter_value_less_than(v3_obj, "Width", "400")
-
-    # Test in range
-    assert PropertyRules.is_parameter_value_in_range(v3_obj, "Width", "200,400")
+    assert comparison_func(v3_obj, param_name, value) == expected_result
 
 
-def test_v2_parameter_value_like(test_objects):
-    """Test pattern matching on parameter values in both v2 and v3 objects."""
+@pytest.mark.parametrize(
+    "param_name, pattern, fuzzy, expected_result",
+    [
+        ("category", "^Walls$", False, True),  # Test exact pattern matches
+        ("category", "Walls", True, True),  # Test fuzzy matches
+        ("category", "Wall", False, True),  # Test partial pattern matches
+        ("category", "^Windows$", False, False),  # Test non-matches
+    ],
+)
+def test_v2_parameter_value_like(test_objects, param_name, pattern, fuzzy, expected_result):
+    """Test pattern matching on parameter values in v2 objects."""
     v2_obj, _ = test_objects
-
-    # Test exact pattern matches
-    assert PropertyRules.is_parameter_value_like(v2_obj, "category", "^Walls$")
-
-    # Test fuzzy matches
-    assert PropertyRules.is_parameter_value_like(v2_obj, "category", "Walls", fuzzy=True)
-
-    # Test partial pattern matches
-    assert PropertyRules.is_parameter_value_like(v2_obj, "category", "Wall")
-
-    # Test non-matches
-    assert not PropertyRules.is_parameter_value_like(v2_obj, "category", "^Windows$")
+    assert PropertyRules.is_parameter_value_like(v2_obj, param_name, pattern, fuzzy=fuzzy) == expected_result
 
 
-def test_v3_parameter_value_like(test_objects):
-    """Test pattern matching on parameter values in both v2 and v3 objects."""
+@pytest.mark.parametrize(
+    "param_name, pattern, fuzzy, expected_result",
+    [
+        ("category", "^Walls$", False, True),  # Test exact pattern matches
+        ("category", "Walls", True, True),  # Test fuzzy matches
+        ("category", "Wall", False, True),  # Test partial pattern matches
+        ("category", "^Windows$", False, False),  # Test non-matches
+    ],
+)
+def test_v3_parameter_value_like(test_objects, param_name, pattern, fuzzy, expected_result):
+    """Test pattern matching on parameter values in v3 objects."""
     _, v3_obj = test_objects
-
-    # Test exact pattern matches
-    assert PropertyRules.is_parameter_value_like(v3_obj, "category", "^Walls$")
-
-    # Test fuzzy matches
-    assert PropertyRules.is_parameter_value_like(v3_obj, "category", "Walls", fuzzy=True)
-
-    # Test partial pattern matches
-    assert PropertyRules.is_parameter_value_like(v3_obj, "category", "Wall")
-
-    # Test non-matches
-    assert not PropertyRules.is_parameter_value_like(v3_obj, "category", "^Windows$")
+    assert PropertyRules.is_parameter_value_like(v3_obj, param_name, pattern, fuzzy=fuzzy) == expected_result
 
 
-def test_v2_parameter_lists(test_objects):
-    """Test list-based parameter checks in both v2 and v3 objects."""
+@pytest.mark.parametrize(
+    "param_name, valid_list, expected_result",
+    [
+        ("category", ["Walls", "Windows", "Doors"], True),  # Test value in list
+        ("category", "Walls,Windows,Doors", True),  # Test comma-separated string list
+        ("category", ["Windows", "Doors"], False),  # Test value not in list
+    ],
+)
+def test_v2_parameter_lists(test_objects, param_name, valid_list, expected_result):
+    """Test list-based parameter checks in v2 objects."""
     v2_obj, _ = test_objects
-
-    valid_categories = ["Walls", "Windows", "Doors"]
-
-    # Test value in list
-    assert PropertyRules.is_parameter_value_in_list(v2_obj, "category", valid_categories)
-
-    # Test comma-separated string list
-    assert PropertyRules.is_parameter_value_in_list(v2_obj, "category", "Walls,Windows,Doors")
-
-    # Test value not in list
-    invalid_categories = ["Windows", "Doors"]
-    assert not PropertyRules.is_parameter_value_in_list(v2_obj, "category", invalid_categories)
+    assert PropertyRules.is_parameter_value_in_list(v2_obj, param_name, valid_list) == expected_result
 
 
-def test_v3_parameter_lists(test_objects):
-    """Test list-based parameter checks in both v2 and v3 objects."""
+@pytest.mark.parametrize(
+    "param_name, valid_list, expected_result",
+    [
+        ("category", ["Walls", "Windows", "Doors"], True),  # Test value in list
+        ("category", "Walls,Windows,Doors", True),  # Test comma-separated string list
+        ("category", ["Windows", "Doors"], False),  # Test value not in list
+    ],
+)
+def test_v3_parameter_lists(test_objects, param_name, valid_list, expected_result):
+    """Test list-based parameter checks in v3 objects."""
     _, v3_obj = test_objects
-
-    valid_categories = ["Walls", "Windows", "Doors"]
-
-    # Test value in list
-    assert PropertyRules.is_parameter_value_in_list(v3_obj, "category", valid_categories)
-
-    # Test comma-separated string list
-    assert PropertyRules.is_parameter_value_in_list(v3_obj, "category", "Walls,Windows,Doors")
-
-    # Test value not in list
-    invalid_categories = ["Windows", "Doors"]
-    assert not PropertyRules.is_parameter_value_in_list(v3_obj, "category", invalid_categories)
+    assert PropertyRules.is_parameter_value_in_list(v3_obj, param_name, valid_list) == expected_result
 
 
-def test_v2_boolean_parameters(test_objects):
-    """Test boolean parameter checks in both v2 and v3 objects."""
+@pytest.mark.parametrize(
+    "param_name, expected_result",
+    [
+        ("WALL_ATTR_ROOM_BOUNDING.value", True),  # Test true values
+        ("wall_top_is_attached", False),  # Test false values
+    ],
+)
+def test_v2_boolean_parameters(test_objects, param_name, expected_result):
+    """Test boolean parameter checks in v2 objects."""
     v2_obj, _ = test_objects
-
-    # Test true values
-    assert PropertyRules.is_parameter_value_true(v2_obj, "WALL_ATTR_ROOM_BOUNDING.value")
-
-    # Test false values
-    assert PropertyRules.is_parameter_value_false(v2_obj, "wall_top_is_attached")
+    if expected_result:
+        assert PropertyRules.is_parameter_value_true(v2_obj, param_name)
+    else:
+        assert PropertyRules.is_parameter_value_false(v2_obj, param_name)
 
 
-def test_v3_boolean_parameters(test_objects):
-    """Test boolean parameter checks in both v2 and v3 objects."""
+@pytest.mark.parametrize(
+    "param_name, expected_result",
+    [
+        ("Room Bounding", True),  # Test true values
+        ("top is attached", False),  # Test false values
+        ("Top is Attached", False),  # Case sensitivity test
+    ],
+)
+def test_v3_boolean_parameters(test_objects, param_name, expected_result):
+    """Test boolean parameter checks in v3 objects."""
     _, v3_obj = test_objects
-
-    # Test true values
-    assert PropertyRules.is_parameter_value_true(v3_obj, "Room Bounding")
-
-    # Test false values
-    assert PropertyRules.is_parameter_value_false(v3_obj, "top is attached")
-    assert PropertyRules.is_parameter_value_false(v3_obj, "Top is Attached")
+    if expected_result:
+        assert PropertyRules.is_parameter_value_true(v3_obj, param_name)
+    else:
+        assert PropertyRules.is_parameter_value_false(v3_obj, param_name)
 
 
-def test_stringified_numbers():
-    """Test stringified numbers comparisons."""
-    assert PropertyRules.is_equal_value("1001.1", 1001.1)  # Stringified float vs float (True)
-    assert PropertyRules.is_equal_value("1001", 1001)  # Stringified int vs int (True)
-    assert PropertyRules.is_equal_value("1001", "1001")  # Stringified int vs stringified int (True)
-    assert PropertyRules.is_equal_value("1001.0001", 1001.0001)  # Stringified float vs float (True)
-
-    assert not PropertyRules.is_equal_value("1001.1", "1001.2")  # Different values (False)
-    assert not PropertyRules.is_equal_value("1001", "1002")  # Different stringified ints (False)
-
-    # Case with stringified numbers that are non-numeric
-    assert not PropertyRules.is_equal_value("1001abc", 1001)  # Invalid numeric string (False)
-    assert not PropertyRules.is_equal_value("1001.1abc", 1001.1)  # Invalid numeric string (False)
-
-
-def test_stringified_float_comparison():
-    """Test stringified float comparisons."""
-    assert PropertyRules.is_equal_value("1001.1", 1001.1)  # Stringified float vs float (True)
-    assert PropertyRules.is_equal_value("1001.1", "1001.1")  # Stringified float vs stringified float (True)
-    assert not PropertyRules.is_equal_value("1001.1", "1001.2")  # Different values (False)
+@pytest.mark.parametrize(
+    "param_name, expected_value, expected_result",
+    [
+        # Test numeric value comparisons
+        ("WALL_ATTR_WIDTH_PARAM", 300, True),
+        ("WALL_ATTR_WIDTH_PARAM.value", 300, True),
+        ("baseLine.length", 5300.000000000002, True),
+        # Test string value comparisons
+        ("STRUCTURAL_MATERIAL_PARAM.value", "Fc24", True),
+        ("ee1f33e1-5506-4a64-b87b-7b98d30aea52.value", "W30", True),
+        # Test non-matches
+        ("WALL_ATTR_WIDTH_PARAM", 301, False),
+        ("nonexistent_param", "any_value", False),
+    ],
+)
+def test_v2_parameter_value_comparisons(v2_wall, param_name, expected_value, expected_result):
+    """Test value comparisons using v2 wall parameters."""
+    assert PropertyRules.is_equal_value(v2_wall, param_name, expected_value) == expected_result
 
 
-def test_case_insensitive_equals():
-    """Test case-insensitive comparison."""
-    assert PropertyRules.is_equal_value("Hello", "hello", case_sensitive=False)  # Case-insensitive (True)
-    assert not PropertyRules.is_equal_value("Hello", "hello", case_sensitive=True)  # Case-sensitive (False)
-    assert PropertyRules.is_equal_value("HELLO", "HELLO", case_sensitive=False)  # Case-insensitive (True)
+@pytest.mark.parametrize(
+    "attribute, value, expected",
+    [
+        # Test numeric value comparisons
+        ("Type Parameters.Structure.Fc24 (0).thickness", 300, True),
+        ("location.length", 5300.000000000002, True),
+        ("location.length", 5300, True),
+        # Test string value comparisons
+        ("Type Parameters.Text.符号.value", "W30", True),
+        ("Instance Parameters.Structural.Structural.value", "Yes", True),
+        # Test non-matches
+        ("Type Parameters.Structure.Fc24 (0).thickness", 301, False),
+        ("nonexistent_param", "any_value", False),
+    ],
+)
+def test_v3_parameter_value_comparisons(v3_wall, attribute, value, expected):
+    """Test value comparisons using v3 wall parameters."""
+    assert PropertyRules.is_equal_value(v3_wall, attribute, value) == expected
 
 
-def test_case_sensitive_identical_equals():
-    """Test case-sensitive exact match."""
-    assert PropertyRules.is_identical_value("Hello", "Hello")  # Exact match (True)
-    assert not PropertyRules.is_identical_value("Hello", "hello")  # Case-sensitive (False)
-    assert not PropertyRules.is_identical_value("Hello", "HelloWorld")  # Different values (False)
+@pytest.mark.parametrize(
+    "wall, attribute, value, expected",
+    [
+        # V2 wall tests
+        ("v2_wall", "WALL_ATTR_WIDTH_PARAM.value", 300, True),
+        ("v2_wall", "type", "W30(Fc24)", True),
+        ("v2_wall", "WALL_ATTR_WIDTH_PARAM.value", 300.0001, False),
+        # V3 wall tests
+        ("v3_wall", "Type Parameters.Structure.Fc24 (0).thickness", 300, True),
+        ("v3_wall", "type", "W30(Fc24)", True),
+        ("v3_wall", "Type Parameters.Structure.Fc24 (0).thickness", 300.0001, False),
+        ("v3_wall", "location.length", 5300.000000000002, True),
+        ("v3_wall", "location.length", 5300, False),
+    ],
+)
+def test_identical_comparisons(request, wall, attribute, value, expected):
+    """Test identical value comparisons on both wall versions."""
+    wall_instance = request.getfixturevalue(wall)
+    assert PropertyRules.is_identical_value(wall_instance, attribute, value) == expected
 
 
-def test_floating_point_equals():
-    """Test floating-point equality with precision tolerance."""
-    assert PropertyRules.is_equal_value(1001.000001, 1001.000002)  # Minor difference (True)
-    assert not PropertyRules.is_equal_value(1001.000001, 1001.1)  # Larger difference (False)
+@pytest.mark.parametrize(
+    "wall, attribute, value",
+    [
+        # V2 wall tests
+        ("v2_wall", "WALL_ATTR_WIDTH_PARAM.value", 301),
+        ("v2_wall", "STRUCTURAL_MATERIAL_PARAM.value", "Fc25"),
+        ("v2_wall", "nonexistent_param", "any_value"),
+        # V3 wall tests
+        ("v3_wall", "Type Parameters.Structure.Fc24 (0).thickness", 301),
+        ("v3_wall", "Type Parameters.Text.符号.value", "W31"),
+        ("v3_wall", "nonexistent_param", "any_value"),
+    ],
+)
+def test_not_equal_comparisons(request, wall, attribute, value):
+    """Test not equal comparisons on both wall versions."""
+    wall_instance = request.getfixturevalue(wall)
+    assert PropertyRules.is_not_equal_value(wall_instance, attribute, value)
 
 
-def test_floating_point_identical_equals():
-    """Test exact floating-point equality without tolerance."""
-    assert PropertyRules.is_identical_value(1001.0, 1001.0)  # Exact match (True)
-    assert not PropertyRules.is_identical_value(1001.0, 1001.000001)  # Slight difference (False)
+@pytest.mark.parametrize(
+    "attribute, value, expected_equal, expected_identical",
+    [
+        # Test Yes/No conversion in equals (should convert)
+        ("Instance Parameters.Structural.Structural.value", True, True, False),  # Yes vs True
+        ("Instance Parameters.Structural.Structural.value", "Yes", True, True),  # Yes vs "Yes"
+        ("Instance Parameters.Structural.Structural.value", "yes", True, False),  # Yes vs "yes"
+    ],
+)
+def test_boolean_conversions(v3_wall, attribute, value, expected_equal, expected_identical):
+    """Test conversion of Yes/No strings to boolean values."""
+    assert PropertyRules.is_equal_value(v3_wall, attribute, value) == expected_equal
+    assert PropertyRules.is_identical_value(v3_wall, attribute, value) == expected_identical
+
+
+@pytest.mark.parametrize(
+    "wall, attribute, expected_value",
+    [
+        # V2 wall tests
+        ("v2_wall", "WALL_ATTR_WIDTH_PARAM.value", "300"),
+        ("v2_wall", "baseLine.length", "5300.000000000002"),
+        # V3 wall tests
+        ("v3_wall", "Type Parameters.Structure.Fc24 (0).thickness", "300"),
+        ("v3_wall", "location.length", "5300.000000000002"),
+    ],
+)
+def test_numeric_string_handling(wall, attribute, expected_value, request):
+    """Test handling of numeric strings in both wall versions."""
+    wall_instance = request.getfixturevalue(wall)  # Retrieve fixture dynamically
+    assert PropertyRules.is_equal_value(wall_instance, attribute, expected_value)
