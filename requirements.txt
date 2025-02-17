@@ -21,7 +21,7 @@ more-itertools==10.6.0
 multidict==6.1.0
 mypy==1.15.0
 mypy-extensions==1.0.0
-numpy==2.2.2
+numpy==2.2.3
 packaging==24.2
 pandas==2.2.3
 pathspec==0.12.1
