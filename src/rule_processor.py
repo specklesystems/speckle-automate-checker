@@ -6,6 +6,7 @@ from pandas.core.groupby import DataFrameGroupBy
 from speckle_automate import AutomationContext, ObjectResultLevel
 from specklepy.objects.base import Base
 
+from inputs import MinimumSeverity
 from src.helpers import speckle_print
 from src.predicates import PREDICATE_METHOD_MAP
 from src.rules import PropertyRules
@@ -100,6 +101,8 @@ def apply_rules_to_objects(
     speckle_objects: list[Base],
     grouped_rules: DataFrameGroupBy,
     automate_context: AutomationContext,
+    minimum_severity: MinimumSeverity = MinimumSeverity.INFO,
+    hide_skipped: bool = False,
 ) -> dict[str, tuple[list[Base], list[Base]]]:
     """Applies defined rules to a list of objects and updates the automate context based on the results.
 
@@ -107,14 +110,16 @@ def apply_rules_to_objects(
         speckle_objects (List[Base]): The list of objects to which rules are applied.
         grouped_rules (pd.DataFrameGroupBy): The DataFrame containing rule definitions.
         automate_context (Any): Context manager for attaching rule results.
+        minimum_severity: Minimum severity level to report
+        hide_skipped: Whether to hide skipped tests
     """
     grouped_results = {}
-
     rules_processed = 0
+    severity_levels = {MinimumSeverity.INFO: 0, MinimumSeverity.WARNING: 1, MinimumSeverity.ERROR: 2}
+    min_severity_level = severity_levels[minimum_severity]
 
     for rule_id, rule_group in grouped_rules:
         rule_id_str = str(rule_id)  # Convert rule_id to string
-
         rules_processed += 1
 
         # Ensure rule_group has necessary columns
@@ -123,17 +128,25 @@ def apply_rules_to_objects(
 
         pass_objects, fail_objects = process_rule(speckle_objects, rule_group)
 
-        attach_results(pass_objects, rule_group.iloc[-1], rule_id_str, automate_context, True)
-        attach_results(fail_objects, rule_group.iloc[-1], rule_id_str, automate_context, False)
+        # Get the severity level for this rule
+        rule_severity = get_severity(rule_group.iloc[-1])
+        rule_severity_level = severity_levels[MinimumSeverity(rule_severity.value)]
 
-        if len(pass_objects) == 0 and len(fail_objects) == 0:
+        # For passing objects, only attach if we're showing all levels (INFO)
+        if minimum_severity == MinimumSeverity.INFO:
+            attach_results(pass_objects, rule_group.iloc[-1], rule_id_str, automate_context, True)
+
+        # For failing objects, attach if they meet minimum severity threshold
+        if rule_severity_level >= min_severity_level:
+            attach_results(fail_objects, rule_group.iloc[-1], rule_id_str, automate_context, False)
+
+        if len(pass_objects) == 0 and len(fail_objects) == 0 and not hide_skipped:
             automate_context.attach_info_to_objects(
                 category=f"Rule {rule_id_str} Skipped",
                 object_ids=["0"],  # This is a hack to get a rule to report with no valid objects
                 message=f"No objects found for rule {rule_id_str}",
                 metadata={},
             )
-            # pass
 
         grouped_results[rule_id_str] = (pass_objects, fail_objects)
 

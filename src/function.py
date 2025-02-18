@@ -47,7 +47,13 @@ def automate_function(
     grouped_rules = rules.groupby("Rule Number")
 
     # apply the rules to the objects
-    apply_rules_to_objects(flat_list_of_objects, grouped_rules, automate_context)
+    apply_rules_to_objects(
+        flat_list_of_objects,
+        grouped_rules,
+        automate_context,
+        minimum_severity=function_inputs.minimum_severity,
+        hide_skipped=function_inputs.hide_skipped,
+    )
 
     # set the automation context view, to the original model / VERSION view
     automate_context.set_context_view()
