@@ -1,3 +1,5 @@
+"""A collection of rules for processing Speckle objects and their properties."""
+
 import math
 import re
 from typing import Any
@@ -323,7 +325,7 @@ class PropertyRules:
         return is_value_in_list(parameter_value, value_list)
 
     @staticmethod
-    def _check_boolean_value(value: Any, values_to_match: tuple[str, ...]) -> bool:
+    def check_boolean_value(value: Any, values_to_match: tuple[str, ...]) -> bool:
         """Check if a value matches any target value in expected format."""
         if isinstance(value, bool):
             return value is (True if "true" in values_to_match else False)
@@ -337,13 +339,13 @@ class PropertyRules:
     def is_parameter_value_true(speckle_object: Base, parameter_name: str) -> bool:
         """Check if parameter value represents true."""
         parameter_value = PropertyRules.get_parameter_value(speckle_object, parameter_name)
-        return PropertyRules._check_boolean_value(parameter_value, ("yes", "true", "1"))
+        return PropertyRules.check_boolean_value(parameter_value, ("yes", "true", "1"))
 
     @staticmethod
     def is_parameter_value_false(speckle_object: Base, parameter_name: str) -> bool:
         """Check if parameter value represents false."""
         parameter_value = PropertyRules.get_parameter_value(speckle_object, parameter_name)
-        return PropertyRules._check_boolean_value(parameter_value, ("no", "false", "0"))
+        return PropertyRules.check_boolean_value(parameter_value, ("no", "false", "0"))
 
     @staticmethod
     def has_category(speckle_object: Base) -> bool:
@@ -362,7 +364,7 @@ class PropertyRules:
         return PropertyRules.get_parameter_value(speckle_object, "category")
 
     @staticmethod
-    def _try_boolean_comparison(value1: Any, value2: Any, allow_yes_no: bool) -> tuple[bool, bool]:
+    def try_boolean_comparison(value1: Any, value2: Any, allow_yes_no: bool) -> tuple[bool, bool]:
         """Attempts to compare two values as booleans."""
 
         def strict_convert_boolean(value: Any) -> Any:
@@ -392,7 +394,7 @@ class PropertyRules:
         return False, False
 
     @staticmethod
-    def _compare_values(
+    def compare_values(
         value1: Any,
         value2: Any,
         case_sensitive: bool = False,
@@ -467,7 +469,7 @@ class PropertyRules:
         if parameter_value is None:
             return False
 
-        return PropertyRules._compare_values(
+        return PropertyRules.compare_values(
             parameter_value, value_to_match, case_sensitive, tolerance, allow_yes_no_bools=True
         )
 
@@ -495,7 +497,7 @@ class PropertyRules:
         if parameter_value is None:
             return True  # Non-existent parameters are considered not equal
 
-        return not PropertyRules._compare_values(
+        return not PropertyRules.compare_values(
             parameter_value, value_to_match, case_sensitive, tolerance, allow_yes_no_bools=True
         )
 
@@ -517,6 +519,6 @@ class PropertyRules:
         if parameter_value is None:
             return False
 
-        return PropertyRules._compare_values(
+        return PropertyRules.compare_values(
             parameter_value, value_to_match, case_sensitive=True, tolerance=0, allow_yes_no_bools=False, use_exact=True
         )
