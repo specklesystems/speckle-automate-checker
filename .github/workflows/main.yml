@@ -31,7 +31,7 @@ jobs:
       - name: Extract functionInputSchema
         id: extract_schema
         run: |
-          python main.py generate_schema "${{ env.FUNCTION_SCHEMA_FILE_NAME }}"
+          python main.py generate_schema "${HOME}/${{ env.FUNCTION_SCHEMA_FILE_NAME }}"
       - name: Verify functionSchema.json exists
         run: ls -lah functionSchema.json
 
@@ -42,5 +42,5 @@ jobs:
           speckle_automate_url: ${{ env.SPECKLE_AUTOMATE_URL || 'https://automate.speckle.dev' }}
           speckle_token: ${{ secrets.SPECKLE_FUNCTION_TOKEN }}
           speckle_function_id: ${{ secrets.SPECKLE_FUNCTION_ID }}
-          speckle_function_input_schema_file_path: ${{ env.FUNCTION_SCHEMA_FILE_NAME }}
+          speckle_function_input_schema_file_path: "${HOME}/${{ env.FUNCTION_SCHEMA_FILE_NAME }}"
           speckle_function_command: 'python -u main.py run'
