@@ -8,7 +8,7 @@ from pandas.core.groupby import DataFrameGroupBy
 from speckle_automate import AutomationContext, ObjectResultLevel
 from specklepy.objects.base import Base
 
-from inputs import MinimumSeverity
+from src.inputs import MinimumSeverity
 from src.helpers import speckle_print
 from src.predicates import PREDICATE_METHOD_MAP
 from src.rules import PropertyRules
