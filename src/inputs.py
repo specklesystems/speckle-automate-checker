@@ -5,9 +5,12 @@ from speckle_automate import AutomateBase
 
 
 class PropertyMatchMode(Enum):
-    STRICT = "strict" # Exact parameter path match
-    FUZZY = "fuzzy"   # Search all parameters ignoring hierarchy
-    MIXED = "mixed"   # Exact match first, fuzzy fallback
+    """Controls how strictly parameter names must match."""
+
+    STRICT = "strict"  # Exact parameter path match
+    FUZZY = "fuzzy"  # Search all parameters ignoring hierarchy
+    MIXED = "mixed"  # Exact match first, fuzzy fallback
+
 
 class MinimumSeverity(str, Enum):
     """Enum for minimum severity level to report."""
@@ -24,12 +27,6 @@ class FunctionInputs(AutomateBase):
     Please use the pydantic model schema to define your inputs:
     https://docs.pydantic.dev/latest/usage/models/
     """
-
-
-
-
-
-
 
     # In this exercise, we will move rules to an external source so not to hardcode them.
     spreadsheet_url: str = Field(
@@ -48,3 +45,12 @@ class FunctionInputs(AutomateBase):
         title="Hide Skipped Tests",
         description="If enabled, tests that were skipped (no matching objects found) will not be reported.",
     )
+
+    # property_match_mode: PropertyMatchMode = Field(
+    #     default=PropertyMatchMode.MIXED,
+    #     title="Property Match Mode",
+    #     description='Controls how strictly parameter names must match. ' +
+    #                 'STRICT will only match exact parameter paths, ' +
+    #                 'FUZZY will search all parameters ignoring hierarchy, ' +
+    #                 'MIXED will exact match first, fuzzy fallback.'
+    # )
