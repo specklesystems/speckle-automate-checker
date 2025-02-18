@@ -1,3 +1,5 @@
+"""Module for processing rules against Speckle objects and updating the automate context with the results."""
+
 from enum import Enum
 from typing import Any
 
@@ -10,6 +12,46 @@ from inputs import MinimumSeverity
 from src.helpers import speckle_print
 from src.predicates import PREDICATE_METHOD_MAP
 from src.rules import PropertyRules
+
+
+def validate_rule_structure(rule_group: pd.DataFrame) -> None:
+    """Validates the structure and logic of a rule group.
+
+    Args:
+        rule_group: DataFrame containing the rule conditions
+
+    Raises:
+        ValueError: If rule structure is invalid
+    """
+    if rule_group.empty:
+        return
+
+    # Validate Logic column exists
+    if "Logic" not in rule_group.columns:
+        raise ValueError("Rule must have a 'Logic' column")
+
+    # Get uppercase Logic values for case-insensitive comparison
+    logic_values = rule_group["Logic"].str.upper()
+
+    # Check if first condition is WHERE
+    if logic_values.iloc[0] != "WHERE":
+        raise ValueError(f"Rule {rule_group.iloc[0]['Rule Number']} must start with WHERE")
+
+    # Count CHECK conditions
+    check_count = sum(1 for value in logic_values if value == "CHECK")
+    if check_count > 1:
+        raise ValueError(f"Rule {rule_group.iloc[0]['Rule Number']} has multiple CHECK conditions")
+
+    # If CHECK exists, ensure it's the last condition
+    check_indices = logic_values[logic_values == "CHECK"].index
+    if check_count == 1 and check_indices[0] != rule_group.index[-1]:
+        raise ValueError(f"CHECK must be the last condition in rule {rule_group.iloc[0]['Rule Number']}")
+
+    # Validate Logic values
+    valid_values = {"WHERE", "AND", "CHECK"}
+    invalid_values = set(logic_values.unique()) - valid_values
+    if invalid_values:
+        raise ValueError(f"Invalid Logic values found: {invalid_values}")
 
 
 def evaluate_condition(
@@ -65,18 +107,11 @@ def process_rule(
     """
     # Extract the 'WHERE' condition and subsequent 'AND' conditions
     filter_condition = rule_group.iloc[0]
-    subsequent_conditions = rule_group.iloc[1:]
 
-    # get the last row of the rule_group and get the Message and Report Severity
-    rule_info = rule_group.iloc[-1]
-    rule_number = rule_info["Rule Number"]
-
-    # Filter objects based on the 'WHERE' condition
-    filtered_objects = [
-        speckle_object for speckle_object in speckle_objects if evaluate_condition(speckle_object, filter_condition)
-    ]
-
-    if not filtered_objects or len(list(filtered_objects)) == 0:
+    try:
+        validate_rule_structure(rule_group)
+    except ValueError as e:
+        speckle_print(f"Rule validation error: {str(e)}")
         return [], []
 
     # Initialize lists for passed and failed objects
