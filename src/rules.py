@@ -243,27 +243,39 @@ class PropertyRules:
 
     @staticmethod
     def is_parameter_value_greater_than(speckle_object: Base, parameter_name: str, threshold: str) -> bool:
-        """Checks if parameter value is greater than threshold."""
+        """Checks if parameter value is greater than threshold.
+
+        Note: From a UX perspective, if someone writes 'height greater than 2401',
+        they mean "flag an error if height <= 2401". So we flip the comparison.
+        """
         parameter_value = PropertyRules.get_parameter_value(speckle_object, parameter_name)
         if parameter_value is None:
             return False
         if not isinstance(parameter_value, int | float):
             raise ValueError(f"Parameter value must be a number, got {type(parameter_value)}")
-        return parameter_value > PropertyRules.parse_number_from_string(threshold)
+        return parameter_value <= PropertyRules.parse_number_from_string(threshold)
 
     @staticmethod
     def is_parameter_value_less_than(speckle_object: Base, parameter_name: str, threshold: str) -> bool:
-        """Checks if parameter value is less than threshold."""
+        """Checks if parameter value is less than threshold.
+
+        Note: From a UX perspective, if someone writes 'height less than 2401',
+        they mean "flag an error if height >= 2401". So we flip the comparison.
+        """
         parameter_value = PropertyRules.get_parameter_value(speckle_object, parameter_name)
         if parameter_value is None:
             return False
         if not isinstance(parameter_value, int | float):
             raise ValueError(f"Parameter value must be a number, got {type(parameter_value)}")
-        return parameter_value < PropertyRules.parse_number_from_string(threshold)
+        return parameter_value >= PropertyRules.parse_number_from_string(threshold)
 
     @staticmethod
     def is_parameter_value_in_range(speckle_object: Base, parameter_name: str, value_range: str) -> bool:
-        """Checks if parameter value falls within range."""
+        """Checks if parameter value falls outside specified range.
+
+        Note: From a UX perspective, if someone writes 'height in range 2401,3000',
+        they mean "flag an error if height < 2401 or height > 3000".
+        """
         min_value, max_value = value_range.split(",")
         min_value = PropertyRules.parse_number_from_string(min_value)
         max_value = PropertyRules.parse_number_from_string(max_value)
