@@ -32,6 +32,8 @@ jobs:
         id: extract_schema
         run: |
           python main.py generate_schema "${{ env.FUNCTION_SCHEMA_FILE_NAME }}"
+      - name: Verify functionSchema.json exists
+        run: ls -lah functionSchema.json
 
       # Step 5: Build and publish the Speckle function
       - name: Speckle Automate Function - Build and Publish
