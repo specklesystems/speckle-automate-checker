@@ -401,15 +401,20 @@ class PropertyRules:
             bool: True if values are considered equal, False otherwise
         """
         # Try boolean comparison first
-        can_compare, result = PropertyRules._try_boolean_comparison(value1, value2, allow_yes_no_bools)
+        can_compare, result = PropertyRules.try_boolean_comparison(value1, value2, allow_yes_no_bools)
         if can_compare:
             return result
 
         # Handle case where one value is a string that can be interpreted as a number
-        if isinstance(value1, str) and value1.replace(".", "", 1).isdigit():
-            value1 = float(value1)
-        if isinstance(value2, str) and value2.replace(".", "", 1).isdigit():
-            value2 = float(value2)
+        def safe_convert_to_number(val):
+            if isinstance(val, str):
+                val = val.strip()  # Remove whitespace
+                if val.replace(".", "", 1).replace("-", "", 1).isdigit():  # Handle negative numbers
+                    return float(val)
+            return val
+
+        value1 = safe_convert_to_number(value1)
+        value2 = safe_convert_to_number(value2)
 
         # For strings: Allow case insensitivity if specified
         if isinstance(value1, str) and isinstance(value2, str):
