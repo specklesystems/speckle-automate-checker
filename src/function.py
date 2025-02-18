@@ -1,12 +1,13 @@
-# This is the main function that will be executed when the automation is triggered.
-# It will receive the inputs from the user, and the context of the run.
-# It will then apply the rules to the objects in the model, and report back the results.
+"""This is the main function that will be executed when the automation is triggered.
 
-from pandas import DataFrame
+It will receive the inputs from the user, and the context of the run.
+It will then apply the rules to the objects in the model, and report back the results.
+"""
+
 from speckle_automate import AutomationContext
 from specklepy.objects.base import Base
 
-from src.helpers import flatten_base
+from src.helpers import flatten_base, speckle_print
 from src.inputs import FunctionInputs
 from src.rule_processor import apply_rules_to_objects
 from src.spreadsheet import read_rules_from_spreadsheet
@@ -38,16 +39,25 @@ def automate_function(
     global VERSION
     VERSION = getattr(version_root_object, "version", 2)  # noqa: F841SION = getattr(version_root_object,"version", 2)  # noqa: F841  # noqa: F841
 
-    # read the rules from the spreadsheet
-    rules: DataFrame = read_rules_from_spreadsheet(function_inputs.spreadsheet_url)
+    # Read and group rules
+    grouped_rules, messages = read_rules_from_spreadsheet(function_inputs.spreadsheet_url)
 
-    if (rules is None) or (len(rules) == 0):
-        automate_context.mark_run_exception("No rules defined")
+    # Handle any validation messages
+    for message in messages:
+        speckle_print(message)  # or log them appropriately
 
-    grouped_rules = rules.groupby("Rule Number")
+    if grouped_rules is None:
+        automate_context.mark_run_exception("Failed to process rules")
+        return
 
     # apply the rules to the objects
-    apply_rules_to_objects(flat_list_of_objects, grouped_rules, automate_context)
+    apply_rules_to_objects(
+        flat_list_of_objects,
+        grouped_rules,
+        automate_context,
+        minimum_severity=function_inputs.minimum_severity,
+        hide_skipped=function_inputs.hide_skipped,
+    )
 
     # set the automation context view, to the original model / VERSION view
     automate_context.set_context_view()

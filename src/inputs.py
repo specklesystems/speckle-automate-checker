@@ -5,9 +5,20 @@ from speckle_automate import AutomateBase
 
 
 class PropertyMatchMode(Enum):
-    STRICT = "strict" # Exact parameter path match
-    FUZZY = "fuzzy"   # Search all parameters ignoring hierarchy
-    MIXED = "mixed"   # Exact match first, fuzzy fallback
+    """Controls how strictly parameter names must match."""
+
+    STRICT = "strict"  # Exact parameter path match
+    FUZZY = "fuzzy"  # Search all parameters ignoring hierarchy
+    MIXED = "mixed"  # Exact match first, fuzzy fallback
+
+
+class MinimumSeverity(str, Enum):
+    """Enum for minimum severity level to report."""
+
+    INFO = "Info"
+    WARNING = "Warning"
+    ERROR = "Error"
+
 
 class FunctionInputs(AutomateBase):
     """These are function author defined values.
@@ -17,23 +28,29 @@ class FunctionInputs(AutomateBase):
     https://docs.pydantic.dev/latest/usage/models/
     """
 
-
-
-
-
-
-
     # In this exercise, we will move rules to an external source so not to hardcode them.
     spreadsheet_url: str = Field(
         title="Spreadsheet URL",
         description="This is the URL of the spreadsheet to check. It should be a TSV format data source.",
     )
 
-    property_match_mode: PropertyMatchMode = Field(
-        default=PropertyMatchMode.MIXED,
-        title="Property Match Mode",
-        description='Controls how strictly parameter names must match. ' +
-                    'STRICT will only match exact parameter paths, ' +
-                    'FUZZY will search all parameters ignoring hierarchy, ' +
-                    'MIXED will exact match first, fuzzy fallback.'
+    minimum_severity: MinimumSeverity = Field(
+        default=MinimumSeverity.INFO,
+        title="Minimum Severity Level",
+        description="Only report test results with this severity level or higher. Info will show all results, Warning will show warnings and errors, Error will show only errors.",
     )
+
+    hide_skipped: bool = Field(
+        default=False,
+        title="Hide Skipped Tests",
+        description="If enabled, tests that were skipped (no matching objects found) will not be reported.",
+    )
+
+    # property_match_mode: PropertyMatchMode = Field(
+    #     default=PropertyMatchMode.MIXED,
+    #     title="Property Match Mode",
+    #     description='Controls how strictly parameter names must match. ' +
+    #                 'STRICT will only match exact parameter paths, ' +
+    #                 'FUZZY will search all parameters ignoring hierarchy, ' +
+    #                 'MIXED will exact match first, fuzzy fallback.'
+    # )

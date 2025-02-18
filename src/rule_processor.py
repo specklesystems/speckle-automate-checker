@@ -1,3 +1,5 @@
+"""Module for processing rules against Speckle objects and updating the automate context with the results."""
+
 from enum import Enum
 from typing import Any
 
@@ -6,9 +8,50 @@ from pandas.core.groupby import DataFrameGroupBy
 from speckle_automate import AutomationContext, ObjectResultLevel
 from specklepy.objects.base import Base
 
+from inputs import MinimumSeverity
 from src.helpers import speckle_print
 from src.predicates import PREDICATE_METHOD_MAP
 from src.rules import PropertyRules
+
+
+def validate_rule_structure(rule_group: pd.DataFrame) -> None:
+    """Validates the structure and logic of a rule group.
+
+    Args:
+        rule_group: DataFrame containing the rule conditions
+
+    Raises:
+        ValueError: If rule structure is invalid
+    """
+    if rule_group.empty:
+        return
+
+    # Validate Logic column exists
+    if "Logic" not in rule_group.columns:
+        raise ValueError("Rule must have a 'Logic' column")
+
+    # Get uppercase Logic values for case-insensitive comparison
+    logic_values = rule_group["Logic"].str.upper()
+
+    # Check if first condition is WHERE
+    if logic_values.iloc[0] != "WHERE":
+        raise ValueError(f"Rule {rule_group.iloc[0]['Rule Number']} must start with WHERE")
+
+    # Count CHECK conditions
+    check_count = sum(1 for value in logic_values if value == "CHECK")
+    if check_count > 1:
+        raise ValueError(f"Rule {rule_group.iloc[0]['Rule Number']} has multiple CHECK conditions")
+
+    # If CHECK exists, ensure it's the last condition
+    check_indices = logic_values[logic_values == "CHECK"].index
+    if check_count == 1 and check_indices[0] != rule_group.index[-1]:
+        raise ValueError(f"CHECK must be the last condition in rule {rule_group.iloc[0]['Rule Number']}")
+
+    # Validate Logic values
+    valid_values = {"WHERE", "AND", "CHECK"}
+    invalid_values = set(logic_values.unique()) - valid_values
+    if invalid_values:
+        raise ValueError(f"Invalid Logic values found: {invalid_values}")
 
 
 def evaluate_condition(
@@ -42,10 +85,50 @@ def evaluate_condition(
         method = getattr(PropertyRules, method_name, None)
 
         if method:
-            check_answer = method(speckle_object, property_name, value)
+            return method(speckle_object, property_name, value)
 
-            return check_answer
     return False
+
+
+def get_filters_and_check(rule_group: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
+    """Separates rule conditions into filters and final check.
+
+    Args:
+        rule_group: DataFrame containing rule conditions
+
+    Returns:
+        Tuple containing filter conditions and final check condition
+    """
+    if rule_group.empty:
+        return pd.DataFrame(), pd.Series()
+
+    # Get uppercase Logic values for case-insensitive comparison
+    logic_values = rule_group["Logic"].str.upper()
+
+    # Look for explicit CHECK
+    check_conditions = rule_group[logic_values == "CHECK"]
+    has_explicit_check = not check_conditions.empty
+
+    if has_explicit_check:
+        # Use first CHECK condition as final check
+        final_check = check_conditions.iloc[0]
+        # All other conditions are filters
+        filters = rule_group[logic_values != "CHECK"]
+    else:
+        # Legacy behavior: use last AND as check if present
+        and_conditions = rule_group[logic_values == "AND"]
+        if not and_conditions.empty:
+            # Get the last AND as the check
+            final_check = and_conditions.iloc[-1]
+            # All conditions up to the last AND are filters
+            last_and_idx = and_conditions.index[-1]
+            filters = rule_group[rule_group.index < last_and_idx]
+        else:
+            # No AND conditions found, just use WHERE as filter
+            filters = rule_group
+            final_check = rule_group.iloc[0]  # Default to first condition as check
+
+    return filters, final_check
 
 
 def process_rule(
@@ -62,36 +145,47 @@ def process_rule(
     Returns:
         A tuple of lists containing objects that passed and failed the rule.
     """
-    # Extract the 'WHERE' condition and subsequent 'AND' conditions
-    filter_condition = rule_group.iloc[0]
-    subsequent_conditions = rule_group.iloc[1:]
-
-    # get the last row of the rule_group and get the Message and Report Severity
-    rule_info = rule_group.iloc[-1]
-    rule_number = rule_info["Rule Number"]
-
-    # Filter objects based on the 'WHERE' condition
-    filtered_objects = [
-        speckle_object for speckle_object in speckle_objects if evaluate_condition(speckle_object, filter_condition)
-    ]
-
-    if not filtered_objects or len(list(filtered_objects)) == 0:
+    if not speckle_objects or rule_group.empty:
         return [], []
 
-    # Initialize lists for passed and failed objects
-    pass_objects, fail_objects = [], []
+    try:
+        validate_rule_structure(rule_group)
+    except ValueError as e:
+        speckle_print(f"Rule validation error: {str(e)}")
+        return [], []
 
-    # Evaluate each filtered object against the 'AND' conditions
-    for speckle_object in filtered_objects:
-        if all(
-            evaluate_condition(
-                speckle_object=speckle_object, condition=condition, rule_number=rule_number, case_number=index
+    # Get filters and final check
+    filters, final_check = get_filters_and_check(rule_group)
+
+    # Start with all objects
+    filtered_objects = speckle_objects.copy()
+    rule_number = rule_group.iloc[0]["Rule Number"]
+
+    #  Apply each filter condition sequentially
+    for index, (_, filter_condition) in enumerate(filters.iterrows()):
+        filtered_objects = [
+            obj
+            for obj in filtered_objects
+            if evaluate_condition(
+                speckle_object=obj, condition=filter_condition, rule_number=rule_number, case_number=index
             )
-            for index, condition in subsequent_conditions.iterrows()
+        ]
+
+        # Early exit if no objects pass filters
+        if not filtered_objects:
+            return [], []
+
+    # For remaining objects, evaluate the final check
+    pass_objects = []
+    fail_objects = []
+
+    for obj in filtered_objects:
+        if evaluate_condition(
+            speckle_object=obj, condition=final_check, rule_number=rule_number, case_number=len(filters)
         ):
-            pass_objects.append(speckle_object)
+            pass_objects.append(obj)
         else:
-            fail_objects.append(speckle_object)
+            fail_objects.append(obj)
 
     return pass_objects, fail_objects
 
@@ -100,6 +194,8 @@ def apply_rules_to_objects(
     speckle_objects: list[Base],
     grouped_rules: DataFrameGroupBy,
     automate_context: AutomationContext,
+    minimum_severity: MinimumSeverity = MinimumSeverity.INFO,
+    hide_skipped: bool = False,
 ) -> dict[str, tuple[list[Base], list[Base]]]:
     """Applies defined rules to a list of objects and updates the automate context based on the results.
 
@@ -107,14 +203,16 @@ def apply_rules_to_objects(
         speckle_objects (List[Base]): The list of objects to which rules are applied.
         grouped_rules (pd.DataFrameGroupBy): The DataFrame containing rule definitions.
         automate_context (Any): Context manager for attaching rule results.
+        minimum_severity: Minimum severity level to report
+        hide_skipped: Whether to hide skipped tests
     """
     grouped_results = {}
-
     rules_processed = 0
+    severity_levels = {MinimumSeverity.INFO: 0, MinimumSeverity.WARNING: 1, MinimumSeverity.ERROR: 2}
+    min_severity_level = severity_levels[minimum_severity]
 
     for rule_id, rule_group in grouped_rules:
         rule_id_str = str(rule_id)  # Convert rule_id to string
-
         rules_processed += 1
 
         # Ensure rule_group has necessary columns
@@ -123,17 +221,25 @@ def apply_rules_to_objects(
 
         pass_objects, fail_objects = process_rule(speckle_objects, rule_group)
 
-        attach_results(pass_objects, rule_group.iloc[-1], rule_id_str, automate_context, True)
-        attach_results(fail_objects, rule_group.iloc[-1], rule_id_str, automate_context, False)
+        # Get the severity level for this rule
+        rule_severity = get_severity(rule_group.iloc[-1])
+        rule_severity_level = severity_levels[MinimumSeverity(rule_severity.value)]
 
-        if len(pass_objects) == 0 and len(fail_objects) == 0:
+        # For passing objects, only attach if we're showing all levels (INFO)
+        if minimum_severity == MinimumSeverity.INFO:
+            attach_results(pass_objects, rule_group.iloc[-1], rule_id_str, automate_context, True)
+
+        # For failing objects, attach if they meet minimum severity threshold
+        if rule_severity_level >= min_severity_level:
+            attach_results(fail_objects, rule_group.iloc[-1], rule_id_str, automate_context, False)
+
+        if len(pass_objects) == 0 and len(fail_objects) == 0 and not hide_skipped:
             automate_context.attach_info_to_objects(
                 category=f"Rule {rule_id_str} Skipped",
                 object_ids=["0"],  # This is a hack to get a rule to report with no valid objects
                 message=f"No objects found for rule {rule_id_str}",
                 metadata={},
             )
-            # pass
 
         grouped_results[rule_id_str] = (pass_objects, fail_objects)
 

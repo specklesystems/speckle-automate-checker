@@ -1,3 +1,5 @@
+"""A collection of rules for processing Speckle objects and their properties."""
+
 import math
 import re
 from typing import Any
@@ -243,27 +245,39 @@ class PropertyRules:
 
     @staticmethod
     def is_parameter_value_greater_than(speckle_object: Base, parameter_name: str, threshold: str) -> bool:
-        """Checks if parameter value is greater than threshold."""
+        """Checks if parameter value is greater than threshold.
+
+        Note: From a UX perspective, if someone writes 'height greater than 2401',
+        they mean "flag an error if height <= 2401". So we flip the comparison.
+        """
         parameter_value = PropertyRules.get_parameter_value(speckle_object, parameter_name)
         if parameter_value is None:
             return False
         if not isinstance(parameter_value, int | float):
             raise ValueError(f"Parameter value must be a number, got {type(parameter_value)}")
-        return parameter_value > PropertyRules.parse_number_from_string(threshold)
+        return parameter_value <= PropertyRules.parse_number_from_string(threshold)
 
     @staticmethod
     def is_parameter_value_less_than(speckle_object: Base, parameter_name: str, threshold: str) -> bool:
-        """Checks if parameter value is less than threshold."""
+        """Checks if parameter value is less than threshold.
+
+        Note: From a UX perspective, if someone writes 'height less than 2401',
+        they mean "flag an error if height >= 2401". So we flip the comparison.
+        """
         parameter_value = PropertyRules.get_parameter_value(speckle_object, parameter_name)
         if parameter_value is None:
             return False
         if not isinstance(parameter_value, int | float):
             raise ValueError(f"Parameter value must be a number, got {type(parameter_value)}")
-        return parameter_value < PropertyRules.parse_number_from_string(threshold)
+        return parameter_value >= PropertyRules.parse_number_from_string(threshold)
 
     @staticmethod
     def is_parameter_value_in_range(speckle_object: Base, parameter_name: str, value_range: str) -> bool:
-        """Checks if parameter value falls within range."""
+        """Checks if parameter value falls outside specified range.
+
+        Note: From a UX perspective, if someone writes 'height in range 2401,3000',
+        they mean "flag an error if height < 2401 or height > 3000".
+        """
         min_value, max_value = value_range.split(",")
         min_value = PropertyRules.parse_number_from_string(min_value)
         max_value = PropertyRules.parse_number_from_string(max_value)
@@ -311,7 +325,7 @@ class PropertyRules:
         return is_value_in_list(parameter_value, value_list)
 
     @staticmethod
-    def _check_boolean_value(value: Any, values_to_match: tuple[str, ...]) -> bool:
+    def check_boolean_value(value: Any, values_to_match: tuple[str, ...]) -> bool:
         """Check if a value matches any target value in expected format."""
         if isinstance(value, bool):
             return value is (True if "true" in values_to_match else False)
@@ -325,13 +339,13 @@ class PropertyRules:
     def is_parameter_value_true(speckle_object: Base, parameter_name: str) -> bool:
         """Check if parameter value represents true."""
         parameter_value = PropertyRules.get_parameter_value(speckle_object, parameter_name)
-        return PropertyRules._check_boolean_value(parameter_value, ("yes", "true", "1"))
+        return PropertyRules.check_boolean_value(parameter_value, ("yes", "true", "1"))
 
     @staticmethod
     def is_parameter_value_false(speckle_object: Base, parameter_name: str) -> bool:
         """Check if parameter value represents false."""
         parameter_value = PropertyRules.get_parameter_value(speckle_object, parameter_name)
-        return PropertyRules._check_boolean_value(parameter_value, ("no", "false", "0"))
+        return PropertyRules.check_boolean_value(parameter_value, ("no", "false", "0"))
 
     @staticmethod
     def has_category(speckle_object: Base) -> bool:
@@ -350,7 +364,7 @@ class PropertyRules:
         return PropertyRules.get_parameter_value(speckle_object, "category")
 
     @staticmethod
-    def _try_boolean_comparison(value1: Any, value2: Any, allow_yes_no: bool) -> tuple[bool, bool]:
+    def try_boolean_comparison(value1: Any, value2: Any, allow_yes_no: bool) -> tuple[bool, bool]:
         """Attempts to compare two values as booleans."""
 
         def strict_convert_boolean(value: Any) -> Any:
@@ -380,7 +394,7 @@ class PropertyRules:
         return False, False
 
     @staticmethod
-    def _compare_values(
+    def compare_values(
         value1: Any,
         value2: Any,
         case_sensitive: bool = False,
@@ -401,15 +415,20 @@ class PropertyRules:
             bool: True if values are considered equal, False otherwise
         """
         # Try boolean comparison first
-        can_compare, result = PropertyRules._try_boolean_comparison(value1, value2, allow_yes_no_bools)
+        can_compare, result = PropertyRules.try_boolean_comparison(value1, value2, allow_yes_no_bools)
         if can_compare:
             return result
 
         # Handle case where one value is a string that can be interpreted as a number
-        if isinstance(value1, str) and value1.replace(".", "", 1).isdigit():
-            value1 = float(value1)
-        if isinstance(value2, str) and value2.replace(".", "", 1).isdigit():
-            value2 = float(value2)
+        def safe_convert_to_number(val):
+            if isinstance(val, str):
+                val = val.strip()  # Remove whitespace
+                if val.replace(".", "", 1).replace("-", "", 1).isdigit():  # Handle negative numbers
+                    return float(val)
+            return val
+
+        value1 = safe_convert_to_number(value1)
+        value2 = safe_convert_to_number(value2)
 
         # For strings: Allow case insensitivity if specified
         if isinstance(value1, str) and isinstance(value2, str):
@@ -450,7 +469,7 @@ class PropertyRules:
         if parameter_value is None:
             return False
 
-        return PropertyRules._compare_values(
+        return PropertyRules.compare_values(
             parameter_value, value_to_match, case_sensitive, tolerance, allow_yes_no_bools=True
         )
 
@@ -478,7 +497,7 @@ class PropertyRules:
         if parameter_value is None:
             return True  # Non-existent parameters are considered not equal
 
-        return not PropertyRules._compare_values(
+        return not PropertyRules.compare_values(
             parameter_value, value_to_match, case_sensitive, tolerance, allow_yes_no_bools=True
         )
 
@@ -500,6 +519,6 @@ class PropertyRules:
         if parameter_value is None:
             return False
 
-        return PropertyRules._compare_values(
+        return PropertyRules.compare_values(
             parameter_value, value_to_match, case_sensitive=True, tolerance=0, allow_yes_no_bools=False, use_exact=True
         )
