@@ -16,8 +16,8 @@ from src.rule_processor import SeverityLevel, get_severity
         ("ERROR", SeverityLevel.ERROR),
         ("error", SeverityLevel.ERROR),
         ("Error", SeverityLevel.ERROR),
-        ("WARN", SeverityLevel.WARNING),  # Invalid → Defaults to ERROR
-        ("warn", SeverityLevel.WARNING),  # Invalid → Defaults to ERROR
+        ("WARN", SeverityLevel.WARNING),  
+        ("warn", SeverityLevel.WARNING),  
         ("Critical", SeverityLevel.ERROR),  # Invalid → Defaults to ERROR
         ("Severe", SeverityLevel.ERROR),  # Invalid → Defaults to ERROR
         ("", SeverityLevel.ERROR),  # Empty string → Defaults to ERROR
