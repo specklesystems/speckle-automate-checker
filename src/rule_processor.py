@@ -1,5 +1,6 @@
 """Module for processing rules against Speckle objects and updating the automate context with the results."""
 
+import json
 from enum import Enum
 from typing import Any
 
@@ -290,15 +291,36 @@ def get_severity(rule_info: pd.Series) -> SeverityLevel:
 def get_metadata(
     rule_id: str, rule_info: pd.Series, passed: bool, speckle_objects: list[Base]
 ) -> dict[str, str | int | Any]:
-    """Function that generates metadata with severity validation."""
-    metadata = {
-        "rule_id": rule_id,
-        "status": "PASS" if passed else "FAIL",
-        "severity": get_severity(rule_info).value,  # Keep proper casing
-        "rule_message": format_message(rule_info),
-        "object_count": len(speckle_objects),
-    }
-    return metadata
+    """Function that generates metadata with severity validation and ensures JSON serializability.
+
+    Reasoning is that non-valid metadata fails inside the Automate context. So let's ensure it's valid.
+
+    Args:
+        rule_id: Identifier for the rule
+        rule_info: Series containing rule information
+        passed: Boolean indicating if the rule passed
+        speckle_objects: List of Speckle objects
+
+    Returns:
+        Dictionary containing metadata if valid JSON serializable, empty dict otherwise
+    """
+    try:
+        metadata = {
+            "rule_id": rule_id,
+            "status": "PASS" if passed else "FAIL",
+            "severity": get_severity(rule_info).value,
+            "rule_message": format_message(rule_info),
+            "object_count": len(speckle_objects),
+        }
+
+        # Validate JSON serializability
+        json.dumps(metadata)
+        return metadata
+
+    except (TypeError, ValueError, json.JSONDecodeError) as e:
+        # Log the error for debugging purposes
+        print(f"Error creating metadata: {str(e)}")
+        return {}
 
 
 def attach_results(
