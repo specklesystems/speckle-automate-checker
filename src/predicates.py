@@ -16,4 +16,5 @@ PREDICATE_METHOD_MAP = {
     "is like": PropertyRules.is_parameter_value_like.__name__,
     "identical to": PropertyRules.is_identical_value.__name__,
     "not equal": PropertyRules.is_not_equal_value.__name__,
+    "contains": PropertyRules.is_parameter_value_containing.__name__,
 }
