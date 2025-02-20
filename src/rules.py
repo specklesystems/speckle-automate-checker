@@ -61,6 +61,21 @@ class PropertyRules:
     """A collection of rules for processing parameters in Speckle objects."""
 
     @staticmethod
+    def is_parameter_value_not_containing(speckle_object: Base, parameter_name: str, substring: str) -> bool:
+        """Checks if parameter value does not contain the given substring.
+
+        Args:
+            speckle_object: The Speckle object to check
+            parameter_name: Name of the parameter to check
+            substring: The substring to look for
+
+        Returns:
+            bool: True if the parameter value does not contain the substring
+        """
+        # Invert the result of contains check
+        return not PropertyRules.is_parameter_value_containing(speckle_object, parameter_name, substring)
+
+    @staticmethod
     def is_parameter_value_containing(speckle_object: Base, parameter_name: str, substring: str) -> bool:
         """Checks if parameter value contains the given substring.
 

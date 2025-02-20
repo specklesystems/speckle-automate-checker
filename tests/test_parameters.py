@@ -386,3 +386,32 @@ class TestParameterHandling:
         """Test handling of numeric strings in both wall versions."""
         wall_instance = request.getfixturevalue(wall)  # Retrieve fixture dynamically
         assert PropertyRules.is_equal_value(wall_instance, attribute, expected_value)
+
+    @pytest.mark.parametrize(
+        "param_name, substring, expected_result",
+        [
+            ("speckle_type", "Revit", True),  # Test basic substring match
+            ("speckle_type", "revit", True),  # Test case-insensitive
+            ("speckle_type", "NotPresent", False),  # Test no match
+            ("speckle_type", "", True),  # Test empty string
+            ("non_existent", "anything", False),  # Test non-existent parameter
+        ],
+    )
+    def test_parameter_value_contains(self, test_objects, param_name, substring, expected_result):
+        """Test substring matching on parameter values."""
+        v2_obj, _ = test_objects
+        assert PropertyRules.is_parameter_value_containing(v2_obj, param_name, substring) == expected_result
+
+    @pytest.mark.parametrize(
+        "param_name, substring, expected_result",
+        [
+            ("speckle_type", "Revit", False),  # Should fail as it does contain Revit
+            ("speckle_type", "NotPresent", True),  # Should pass as it doesn't contain
+            ("speckle_type", "", False),  # Should fail as empty string is contained
+            ("non_existent", "anything", True),  # Should pass as non-existent can't contain
+        ],
+    )
+    def test_parameter_value_not_contains(self, test_objects, param_name, substring, expected_result):
+        """Test negative substring matching on parameter values."""
+        v2_obj, _ = test_objects
+        assert PropertyRules.is_parameter_value_not_containing(v2_obj, param_name, substring) == expected_result
