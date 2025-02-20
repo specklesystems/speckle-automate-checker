@@ -8,8 +8,8 @@ from pandas.core.groupby import DataFrameGroupBy
 from speckle_automate import AutomationContext, ObjectResultLevel
 from specklepy.objects.base import Base
 
-from src.inputs import MinimumSeverity
 from src.helpers import speckle_print
+from src.inputs import MinimumSeverity
 from src.predicates import PREDICATE_METHOD_MAP
 from src.rules import PropertyRules
 
@@ -295,7 +295,7 @@ def get_metadata(
         "rule_id": rule_id,
         "status": "PASS" if passed else "FAIL",
         "severity": get_severity(rule_info).value,  # Keep proper casing
-        "rule_message": rule_info["Message"],
+        "rule_message": format_message(rule_info),
         "object_count": len(speckle_objects),
     }
     return metadata
@@ -323,8 +323,7 @@ def attach_results(
     # Create structured metadata for onward data analysis uses
 
     metadata = get_metadata(rule_id, rule_info, passed, speckle_objects)
-
-    message = f"{rule_info['Message']}"
+    message = format_message(rule_info)
 
     if not passed:
         speckle_print(rule_info["Report Severity"])
@@ -348,3 +347,13 @@ def attach_results(
             message=message,
             metadata=metadata,
         )
+
+
+def format_message(rule_info):
+    """Format the message for the rule."""
+    message = (
+        str(rule_info["Message"])
+        if rule_info["Message"] is not None and not pd.isna(rule_info["Message"])
+        else "No Message"
+    )
+    return message
