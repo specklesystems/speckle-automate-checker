@@ -253,9 +253,11 @@ class PropertyRules:
         parameter_value = PropertyRules.get_parameter_value(speckle_object, parameter_name)
         if parameter_value is None:
             return False
-        if not isinstance(parameter_value, int | float):
-            raise ValueError(f"Parameter value must be a number, got {type(parameter_value)}")
-        return parameter_value <= PropertyRules.parse_number_from_string(threshold)
+        try:
+            parameter_value = float(parameter_value)
+        except (ValueError, TypeError):
+            return False  # Return False if the value cannot be converted to a number
+        return parameter_value > PropertyRules.parse_number_from_string(threshold)
 
     @staticmethod
     def is_parameter_value_less_than(speckle_object: Base, parameter_name: str, threshold: str) -> bool:
@@ -267,9 +269,12 @@ class PropertyRules:
         parameter_value = PropertyRules.get_parameter_value(speckle_object, parameter_name)
         if parameter_value is None:
             return False
-        if not isinstance(parameter_value, int | float):
-            raise ValueError(f"Parameter value must be a number, got {type(parameter_value)}")
-        return parameter_value >= PropertyRules.parse_number_from_string(threshold)
+        try:
+            parameter_value = float(parameter_value)
+        except (ValueError, TypeError):
+            return False  # Return False if the value cannot be converted to a number
+
+        return parameter_value < PropertyRules.parse_number_from_string(threshold)
 
     @staticmethod
     def is_parameter_value_in_range(speckle_object: Base, parameter_name: str, value_range: str) -> bool:
@@ -285,8 +290,10 @@ class PropertyRules:
         parameter_value = PropertyRules.get_parameter_value(speckle_object, parameter_name)
         if parameter_value is None:
             return False
-        if not isinstance(parameter_value, int | float):
-            raise ValueError(f"Parameter value must be a number, got {type(parameter_value)}")
+        try:
+            parameter_value = float(parameter_value)
+        except (ValueError, TypeError):
+            return False  # Return False if the value cannot be converted to a number
 
         return min_value <= parameter_value <= max_value
 
