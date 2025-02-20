@@ -61,6 +61,31 @@ class PropertyRules:
     """A collection of rules for processing parameters in Speckle objects."""
 
     @staticmethod
+    def is_parameter_value_contains(speckle_object: Base, parameter_name: str, substring: str) -> bool:
+        """Checks if parameter value contains the given substring.
+
+        Args:
+            speckle_object: The Speckle object to check
+            parameter_name: Name of the parameter to check
+            substring: The substring to look for
+
+        Returns:
+            bool: True if the parameter value contains the substring
+        """
+        parameter_value = PropertyRules.get_parameter_value(speckle_object, parameter_name)
+        if parameter_value is None:
+            return False
+
+        # Convert both to strings for comparison
+        try:
+            parameter_str = str(parameter_value).lower()
+            substring_str = str(substring).lower()
+            return substring_str in parameter_str
+        except (TypeError, ValueError) as e:
+            print(f"Error in is_parameter_value_contains: {e}")
+            return False
+
+    @staticmethod
     def normalize_path(path: str) -> str:
         """Remove technical path prefixes like 'properties' and 'parameters'."""
         parts = path.split(".")
