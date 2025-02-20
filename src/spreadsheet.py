@@ -6,11 +6,10 @@ from pandas.core.groupby import DataFrameGroupBy
 
 
 def process_rule_numbers(df: DataFrame) -> DataFrame:
-    """Process rule numbers in a DataFrame.
+    """Process rule numbers in a DataFrame while preserving original rule identifiers.
 
-    1. Finding rule groups based on 'WHERE' logic
-    2. Using the first non-null rule number in each group
-    3. Handling duplicate rule numbers by incrementing
+    Makes no assumptions about rule number format - preserves them exactly as provided.
+    Only generates new numbers (as integers) when no rule number exists.
 
     Args:
         df: DataFrame with columns including 'Rule Number' and 'Logic'
@@ -22,9 +21,9 @@ def process_rule_numbers(df: DataFrame) -> DataFrame:
     df = df.copy()
 
     # Initialize tracking variables
-    current_rule_num = None
     used_rule_nums = set()
     processed_rule_nums = []
+    next_auto_num = 1  # For generating missing rule numbers only
 
     # Find indices where Logic is 'WHERE' to identify rule group starts
     where_indices = df[df["Logic"].str.upper() == "WHERE"].index
@@ -41,22 +40,16 @@ def process_rule_numbers(df: DataFrame) -> DataFrame:
         group_rule_num = group_slice["Rule Number"].iloc[0]
 
         if pd.isna(group_rule_num):
-            # If no rule number, generate next available
-            if current_rule_num is None:
-                current_rule_num = 1
-            else:
-                current_rule_num += 1
-            group_rule_num = current_rule_num
+            # If no rule number, generate next available number
+            while str(next_auto_num) in used_rule_nums:
+                next_auto_num += 1
+            group_rule_num = str(next_auto_num)
+            next_auto_num += 1
         else:
-            # Convert to int if it's a float or string
-            group_rule_num = int(group_rule_num)
-
-        # Handle duplicate rule numbers
-        while group_rule_num in used_rule_nums:
-            group_rule_num += 1
+            # Keep the original rule number exactly as is
+            group_rule_num = str(group_rule_num)
 
         # Update tracking
-        current_rule_num = group_rule_num
         used_rule_nums.add(group_rule_num)
 
         # Fill rule numbers for this group
@@ -133,11 +126,18 @@ def read_rules_from_spreadsheet(url: str) -> tuple[DataFrameGroupBy, list[str]] 
 def convert_mixed_columns(df: DataFrame) -> DataFrame:
     """Converts columns in a DataFrame to appropriate types based on their content.
 
+    null or empty strings are converted to empty strings instead of NaN.
+
     Args:
         df (DataFrame): The DataFrame whose columns are to be converted
 
     Returns:
         DataFrame with columns converted to appropriate types
     """
-    # df = df.apply(lambda c: c.astype(object) if any(str(x).replace(".", "", 1).isdigit() for x in c) else c.astype(str))
+    df = df.apply(
+        lambda c: c
+        if c.dropna().apply(lambda x: str(x).replace(".", "", 1).isdigit()).any()
+        else c.map(lambda x: "" if pd.isna(x) else str(x))
+    )
+
     return df

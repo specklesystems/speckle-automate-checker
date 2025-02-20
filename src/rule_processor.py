@@ -1,5 +1,6 @@
 """Module for processing rules against Speckle objects and updating the automate context with the results."""
 
+import json
 from enum import Enum
 from typing import Any
 
@@ -8,8 +9,8 @@ from pandas.core.groupby import DataFrameGroupBy
 from speckle_automate import AutomationContext, ObjectResultLevel
 from specklepy.objects.base import Base
 
-from src.inputs import MinimumSeverity
 from src.helpers import speckle_print
+from src.inputs import MinimumSeverity
 from src.predicates import PREDICATE_METHOD_MAP
 from src.rules import PropertyRules
 
@@ -290,15 +291,36 @@ def get_severity(rule_info: pd.Series) -> SeverityLevel:
 def get_metadata(
     rule_id: str, rule_info: pd.Series, passed: bool, speckle_objects: list[Base]
 ) -> dict[str, str | int | Any]:
-    """Function that generates metadata with severity validation."""
-    metadata = {
-        "rule_id": rule_id,
-        "status": "PASS" if passed else "FAIL",
-        "severity": get_severity(rule_info).value,  # Keep proper casing
-        "rule_message": rule_info["Message"],
-        "object_count": len(speckle_objects),
-    }
-    return metadata
+    """Function that generates metadata with severity validation and ensures JSON serializability.
+
+    Reasoning is that non-valid metadata fails inside the Automate context. So let's ensure it's valid.
+
+    Args:
+        rule_id: Identifier for the rule
+        rule_info: Series containing rule information
+        passed: Boolean indicating if the rule passed
+        speckle_objects: List of Speckle objects
+
+    Returns:
+        Dictionary containing metadata if valid JSON serializable, empty dict otherwise
+    """
+    try:
+        metadata = {
+            "rule_id": rule_id,
+            "status": "PASS" if passed else "FAIL",
+            "severity": get_severity(rule_info).value,
+            "rule_message": format_message(rule_info),
+            "object_count": len(speckle_objects),
+        }
+
+        # Validate JSON serializability
+        json.dumps(metadata)
+        return metadata
+
+    except (TypeError, ValueError, json.JSONDecodeError) as e:
+        # Log the error for debugging purposes
+        print(f"Error creating metadata: {str(e)}")
+        return {}
 
 
 def attach_results(
@@ -323,8 +345,7 @@ def attach_results(
     # Create structured metadata for onward data analysis uses
 
     metadata = get_metadata(rule_id, rule_info, passed, speckle_objects)
-
-    message = f"{rule_info['Message']}"
+    message = format_message(rule_info)
 
     if not passed:
         speckle_print(rule_info["Report Severity"])
@@ -348,3 +369,13 @@ def attach_results(
             message=message,
             metadata=metadata,
         )
+
+
+def format_message(rule_info):
+    """Format the message for the rule."""
+    message = (
+        str(rule_info["Message"])
+        if rule_info["Message"] is not None and not pd.isna(rule_info["Message"])
+        else "No Message"
+    )
+    return message
