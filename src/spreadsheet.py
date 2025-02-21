@@ -1,5 +1,7 @@
 """Module for reading and processing rules from a cloud hosted TSV file."""
 
+import traceback
+
 import pandas as pd
 from pandas import DataFrame
 from pandas.core.groupby import DataFrameGroupBy
@@ -76,10 +78,10 @@ def validate_rule_numbers(df: DataFrame) -> list[str]:
     if df["Rule Number"].isna().any():
         messages.append("Warning: Some rules are missing rule numbers")
 
-    # Check for non-integer rule numbers
-    non_int_mask = df["Rule Number"].apply(lambda x: not pd.isna(x) and not float(x).is_integer())
-    if non_int_mask.any():
-        messages.append("Warning: Some rule numbers are not integers")
+    # # Check for non-integer rule numbers
+    # non_int_mask = df["Rule Number"].apply(lambda x: not pd.isna(x) and not float(x).is_integer())
+    # if non_int_mask.any():
+    #     messages.append("Warning: Some rule numbers are not integers")
 
     # Check for duplicate rule numbers in WHERE rows
     where_rules = df[df["Logic"].str.upper() == "WHERE"]["Rule Number"]
@@ -120,7 +122,8 @@ def read_rules_from_spreadsheet(url: str) -> tuple[DataFrameGroupBy, list[str]] 
         return grouped_rules, messages
 
     except Exception as e:
-        return None, [f"Failed to read the TSV from the URL: {str(e)}"]
+        traceback.print_exc()
+        return None, [f"Failed to read the TSV from the URL: {str(e)}:{e.with_traceback(None)}"]
 
 
 def convert_mixed_columns(df: DataFrame) -> DataFrame:
