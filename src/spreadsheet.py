@@ -1,4 +1,24 @@
-"""Module for reading and processing rules from a cloud hosted TSV file."""
+"""Module for reading and processing rules from a cloud hosted TSV file.
+
+This module handles the loading and processing of validation rules from external
+spreadsheet data, enabling non-technical users to define and modify rules.
+
+Key features:
+1. Reading from hosted TSV files (e.g., from Google Sheets)
+2. Processing rule numbers for consistent grouping
+3. Handling mixed data types in spreadsheet columns
+4. Validating rule structure and providing feedback
+5. Grouping related rule conditions for execution
+
+The spreadsheet format used follows a specific structure:
+- Rule Number: Groups related conditions together
+- Logic: WHERE/AND/CHECK to define condition relationships
+- Property Name: The property path to check
+- Predicate: The comparison operation (equals, greater than, etc.)
+- Value: The value to compare against
+- Message: The message to display for rule results
+- Severity: INFO/WARNING/ERROR level for failures
+"""
 
 import traceback
 
@@ -10,14 +30,20 @@ from pandas.core.groupby import DataFrameGroupBy
 def process_rule_numbers(df: DataFrame) -> DataFrame:
     """Process rule numbers in a DataFrame while preserving original rule identifiers.
 
-    Makes no assumptions about rule number format - preserves them exactly as provided.
-    Only generates new numbers (as integers) when no rule number exists.
+    This function handles various rule numbering scenarios:
+    1. Preserves existing rule numbers exactly as provided
+    2. Generates sequential numbers for missing rule numbers
+    3. Ensures all rows in a logical rule group have the same rule number
+
+    This is important because rule numbers determine how conditions are grouped
+    and executed together.
 
     Args:
         df: DataFrame with columns including 'Rule Number' and 'Logic'
 
     Returns:
-        DataFrame with processed rule numbers
+        DataFrame with processed rule numbers, where all related conditions
+        have the same rule number
     """
     # Create a copy to avoid modifying original
     df = df.copy()
@@ -64,7 +90,16 @@ def process_rule_numbers(df: DataFrame) -> DataFrame:
 
 
 def validate_rule_numbers(df: DataFrame) -> list[str]:
-    """Validate rule numbers and return any warnings or errors.
+    """ "
+    Validate rule numbers and return any warnings or errors.
+
+    This checks for issues like:
+    1. Missing rule numbers
+    2. Non-integer rule numbers
+    3. Duplicate rule numbers
+
+    These validations help ensure rule integrity without being overly strict,
+    allowing for different user approaches to rule numbering.
 
     Args:
         df: DataFrame with processed rule numbers
@@ -93,10 +128,18 @@ def validate_rule_numbers(df: DataFrame) -> list[str]:
 
 
 def read_rules_from_spreadsheet(url: str) -> tuple[DataFrameGroupBy, list[str]] | tuple[None, list[str]]:
-    """Reads a TSV file from a provided URL, processes rule numbers, and returns grouped rules.
+    """ "
+    Reads rules from a TSV file at the provided URL, processes them, and returns grouped rules.
+
+    This function is the main entry point for rule loading:
+    1. Reads the TSV file from the provided URL
+    2. Converts mixed type columns to appropriate types
+    3. Processes rule numbers for consistent grouping
+    4. Validates rule numbers and collects messages
+    5. Groups rules by rule number for execution
 
     Args:
-        url (str): The URL to the TSV file
+        url: The URL to the TSV file containing rule definitions
 
     Returns:
         Tuple containing:
@@ -105,23 +148,30 @@ def read_rules_from_spreadsheet(url: str) -> tuple[DataFrameGroupBy, list[str]] 
     """
     try:
         # Read the TSV file
+        # The TSV format is chosen for compatibility with Google Sheets
+        # and other spreadsheet applications
         df = pd.read_csv(url, sep="\t")
 
         # Convert mixed type columns
+        # This handles inconsistencies in spreadsheet data
         df = convert_mixed_columns(df)
 
         # Process rule numbers
+        # This ensures all related conditions have the same rule number
         df = process_rule_numbers(df)
 
         # Get validation messages
+        # These are warnings about potential issues with the rules
         messages = validate_rule_numbers(df)
 
         # Group by rule number
+        # This creates a DataFrameGroupBy object that groups related conditions
         grouped_rules = df.groupby("Rule Number")
 
         return grouped_rules, messages
 
     except Exception as e:
+        # Handle any errors in reading or processing the spreadsheet
         traceback.print_exc()
         return None, [f"Failed to read the TSV from the URL: {str(e)}:{e.with_traceback(None)}"]
 
@@ -129,10 +179,17 @@ def read_rules_from_spreadsheet(url: str) -> tuple[DataFrameGroupBy, list[str]] 
 def convert_mixed_columns(df: DataFrame) -> DataFrame:
     """Converts columns in a DataFrame to appropriate types based on their content.
 
-    null or empty strings are converted to empty strings instead of NaN.
+    This handles common issues with spreadsheet data:
+    1. Numeric columns that contain strings
+    2. Mixed type columns
+    3. Empty cells and NaN values
+
+    The approach is to convert each column appropriately:
+    - Numeric columns remain as numbers
+    - Other columns are converted to strings, with empty strings for missing values
 
     Args:
-        df (DataFrame): The DataFrame whose columns are to be converted
+        df: The DataFrame whose columns are to be converted
 
     Returns:
         DataFrame with columns converted to appropriate types

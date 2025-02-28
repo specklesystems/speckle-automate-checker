@@ -1,4 +1,16 @@
-"""Module for processing rules against Speckle objects and updating the automate context with the results."""
+"""Module for processing rules against Speckle objects and updating the automate context with the results.
+
+This module implements the core rule processing logic that:
+1. Validates rule structure and logic
+2. Evaluates rule conditions against Speckle objects
+3. Separates filtering conditions and final check conditions
+4. Processes rule groups and tracks results
+5. Reports results back to the Speckle Automate context
+
+The rule processing follows a "filter then validate" approach:
+- Filter conditions (WHERE, AND) narrow down which objects to check
+- The final check condition (CHECK or last AND) determines pass/fail
+"""
 
 import json
 from enum import Enum
@@ -17,6 +29,11 @@ from src.rules import PropertyRules
 
 def validate_rule_structure(rule_group: pd.DataFrame) -> None:
     """Validates the structure and logic of a rule group.
+
+    This ensures the rule follows the proper format:
+    - First condition must be WHERE
+    - Following conditions can be AND
+    - Only one CHECK condition is allowed (and must be last)
 
     Args:
         rule_group: DataFrame containing the rule conditions
@@ -58,47 +75,61 @@ def validate_rule_structure(rule_group: pd.DataFrame) -> None:
 def evaluate_condition(
     speckle_object: Base, condition: pd.Series, rule_number: str | None = None, case_number: int | None = None
 ) -> bool:
-    """Given a Speckle object and a condition, evaluates the condition and returns a boolean value.
+    """Evaluates a single condition against a Speckle object.
 
-    A condition is a pandas Series object with the following keys:
-    - 'Property Name': The name of the property to evaluate.
-    - 'Predicate': The predicate to use for evaluation.
-    - 'Value': The value to compare against.
+    This function is the bridge between the rules defined in the spreadsheet
+    and the property checking methods in PropertyRules. It:
+    1. Extracts the property name, predicate, and value from the condition
+    2. Maps the predicate to the corresponding method in PropertyRules
+    3. Calls the method with the object, property name, and value
 
     Args:
-        rule_number (string): For information the rule number.
-        case_number (int): For information the rule clause number.
-        speckle_object (Base): The Speckle object to evaluate.
-        condition (pd.Series): The condition to evaluate.
+        speckle_object: The Speckle object to evaluate against
+        condition: A pandas Series containing the condition details
+            - 'Property Name': The name of the property to check
+            - 'Predicate': The comparison operation (like 'equals', 'greater than')
+            - 'Value': The value to compare against
+        rule_number: For tracking, the rule number being evaluated
+        case_number: For tracking, the condition number within the rule
 
     Returns:
-        bool: The result of the evaluation. True if the condition is met, False otherwise.
+        True if the condition is met, False otherwise
     """
     property_name = condition["Property Name"]
     predicate_key = condition["Predicate"]
     value = condition["Value"]
 
+    # Debugging info
     _ = rule_number
     _ = case_number
 
+    # Look up the method name in the predicate map
+    # This map connects spreadsheet predicates to PropertyRules methods
     if predicate_key in PREDICATE_METHOD_MAP:
         method_name = PREDICATE_METHOD_MAP[predicate_key]
         method = getattr(PropertyRules, method_name, None)
 
         if method:
+            # Call the method with the object, property name, and value
             return method(speckle_object, property_name, value)
 
     return False
 
 
 def get_filters_and_check(rule_group: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
-    """Separates rule conditions into filters and final check.
+    """Separates rule conditions into filtering conditions and the final check condition.
+
+    This function handles two rule formats:
+    1. Explicit format: WHERE + AND... + CHECK
+    2. Legacy format: WHERE + AND... (last AND is implicitly the check)
+
+    This separation enables the "filter then validate" approach.
 
     Args:
         rule_group: DataFrame containing rule conditions
 
     Returns:
-        Tuple containing filter conditions and final check condition
+        Tuple containing (filter_conditions, final_check_condition)
     """
     if rule_group.empty:
         return pd.DataFrame(), pd.Series()
@@ -135,16 +166,21 @@ def get_filters_and_check(rule_group: pd.DataFrame) -> tuple[pd.DataFrame, pd.Se
 def process_rule(
     speckle_objects: list[Base], rule_group: pd.DataFrame
 ) -> tuple[list[Any], list[Any]] | tuple[list[Base], list[Base]]:
-    """Processes a set of rules against Speckle objects, returning those that pass and fail.
+    """Processes a rule group against a list of Speckle objects.
 
-    The first rule is used as a filter ('WHERE'), and subsequent rules as conditions ('AND').
+    This function implements the "filter then validate" approach:
+    1. Apply filter conditions sequentially to narrow down objects
+    2. Apply the final check condition to determine pass/fail
+
+    This approach is efficient for large models as it reduces the number
+    of objects that need full validation.
 
     Args:
-        speckle_objects: List of Speckle objects to be processed.
-        rule_group: DataFrame defining the filter and conditions.
+        speckle_objects: List of Speckle objects to be processed
+        rule_group: DataFrame defining the filter and check conditions
 
     Returns:
-        A tuple of lists containing objects that passed and failed the rule.
+        A tuple of lists (pass_objects, fail_objects)
     """
     if not speckle_objects or rule_group.empty:
         return [], []
@@ -177,6 +213,7 @@ def process_rule(
             return [], []
 
     # For remaining objects, evaluate the final check
+    # This separates objects into pass/fail groups
     pass_objects = []
     fail_objects = []
 
@@ -198,14 +235,23 @@ def apply_rules_to_objects(
     minimum_severity: MinimumSeverity = MinimumSeverity.INFO,
     hide_skipped: bool = False,
 ) -> dict[str, tuple[list[Base], list[Base]]]:
-    """Applies defined rules to a list of objects and updates the automate context based on the results.
+    """Applies defined rules to a list of objects and updates the automate context with the results.
+
+    This is the main orchestration function that:
+    1. Processes each rule group against all objects
+    2. Filters results based on severity levels
+    3. Attaches results to objects in the Speckle Automate context
+    4. Reports skipped rules (where no objects matched filters)
 
     Args:
-        speckle_objects (List[Base]): The list of objects to which rules are applied.
-        grouped_rules (pd.DataFrameGroupBy): The DataFrame containing rule definitions.
-        automate_context (Any): Context manager for attaching rule results.
+        speckle_objects: The list of objects to which rules are applied
+        grouped_rules: The rules grouped by rule number
+        automate_context: Context manager for attaching results to objects
         minimum_severity: Minimum severity level to report
-        hide_skipped: Whether to hide skipped tests
+        hide_skipped: Whether to hide skipped rules in results
+
+    Returns:
+        Dictionary mapping rule IDs to (pass_objects, fail_objects) tuples
     """
     grouped_results = {}
     rules_processed = 0
@@ -249,7 +295,13 @@ def apply_rules_to_objects(
 
 
 class SeverityLevel(Enum):
-    """Enum for severity levels."""
+    """Enumeration for severity levels of rule results.
+
+    These severity levels determine how rule failures are displayed:
+    - INFO: Informational, no action required
+    - WARNING: Potential issue that should be reviewed
+    - ERROR: Critical issue requiring attention
+    """
 
     INFO = "Info"
     WARNING = "Warning"
@@ -257,13 +309,19 @@ class SeverityLevel(Enum):
 
 
 def get_severity(rule_info: pd.Series) -> SeverityLevel:
-    """Convert a string severity level to the corresponding SeverityLevel enum.
+    """Convert a string severity level from the spreadsheet to the corresponding SeverityLevel enum.
 
-    This function normalizes input strings (because processing user entered dead is hard), handling:
+    This function normalizes user input with robust handling for:
     - Case insensitivity (e.g., "info", "WARNING" → "Info", "Warning")
     - Shorthand mappings (e.g., "WARN" → "Warning")
-    - Stripping whitespace
-    - Defaults to SeverityLevel.ERROR if the input is invalid
+    - Whitespace handling
+    - Default fallback to ERROR for invalid input
+
+    Args:
+        rule_info: Series containing rule information with 'Report Severity' key
+
+    Returns:
+        Appropriate SeverityLevel enum value
     """
     severity = rule_info.get("Report Severity")  # Extract severity from input data
 
@@ -291,15 +349,18 @@ def get_severity(rule_info: pd.Series) -> SeverityLevel:
 def get_metadata(
     rule_id: str, rule_info: pd.Series, passed: bool, speckle_objects: list[Base]
 ) -> dict[str, str | int | Any]:
-    """Function that generates metadata with severity validation and ensures JSON serializability.
+    """Generates structured metadata for rule results.
 
-    Reasoning is that non-valid metadata fails inside the Automate context. So let's ensure it's valid.
+    This metadata is attached to objects in the Speckle platform and is:
+    1. Validated for JSON serializability
+    2. Structured for consistent representation
+    3. Includes key information about the rule and results
 
     Args:
         rule_id: Identifier for the rule
         rule_info: Series containing rule information
         passed: Boolean indicating if the rule passed
-        speckle_objects: List of Speckle objects
+        speckle_objects: List of Speckle objects affected
 
     Returns:
         Dictionary containing metadata if valid JSON serializable, empty dict otherwise
@@ -330,14 +391,19 @@ def attach_results(
     context: AutomationContext,
     passed: bool,
 ) -> None:
-    """Attaches the results of a rule to the objects in the context.
+    """Attaches rule results to objects in the Speckle Automate context.
+
+    This function is the interface to the Speckle platform for reporting results:
+    - For failing objects, attaches results with appropriate severity levels
+    - For passing objects, attaches informational results
+    - Includes structured metadata for consistent reporting
 
     Args:
-        speckle_objects (List[Base]): The list of objects to which the rule was applied.
-        rule_info (pd.Series): The information about the rule.
-        rule_id (str): The ID of the rule.
-        context (AutomationContext): The context manager for attaching results.
-        passed (bool): Whether the rule passed or failed.
+        speckle_objects: The list of objects affected by the rule
+        rule_info: Information about the rule
+        rule_id: Identifier for the rule
+        context: The Speckle Automate context for result attachment
+        passed: Whether the objects passed the rule
     """
     if not speckle_objects:
         return
@@ -372,7 +438,16 @@ def attach_results(
 
 
 def format_message(rule_info):
-    """Format the message for the rule."""
+    """Format the message for the rule result.
+
+    Handles cases where the message might be None or NaN.
+
+    Args:
+        rule_info: Series containing rule information with 'Message' key
+
+    Returns:
+        Formatted message string
+    """
     message = (
         str(rule_info["Message"])
         if rule_info["Message"] is not None and not pd.isna(rule_info["Message"])
