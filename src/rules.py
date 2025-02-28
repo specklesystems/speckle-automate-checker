@@ -890,3 +890,35 @@ class PropertyRules:
         return PropertyRules.compare_values(
             parameter_value, value_to_match, case_sensitive=True, tolerance=0, allow_yes_no_bools=False, use_exact=True
         )
+
+    @staticmethod
+    def is_parameter_value_not_empty(speckle_object: Base, parameter_name: str) -> bool:
+        """Checks if parameter exists and has a non-empty value.
+
+        Args:
+            speckle_object: The Speckle object to check
+            parameter_name: Name of the parameter to check
+
+        Returns:
+            bool: True if parameter exists and has a non-empty value
+        """
+        # Get the parameter value
+        parameter_value = PropertyRules.get_parameter_value(speckle_object, parameter_name)
+
+        # Check if parameter exists
+        if parameter_value is None:
+            return False
+
+        # Check if value is an empty string
+        if isinstance(parameter_value, str) and parameter_value.strip() == "":
+            return False
+
+        # Check if value is an empty list or collection
+        if hasattr(parameter_value, "__len__") and len(parameter_value) == 0:
+            return False
+
+        # Additional check for "None" string which can sometimes appear in exports
+        if isinstance(parameter_value, str) and parameter_value.lower() == "none":
+            return False
+
+        return True

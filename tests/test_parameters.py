@@ -415,3 +415,20 @@ class TestParameterHandling:
         """Test negative substring matching on parameter values."""
         v2_obj, _ = test_objects
         assert PropertyRules.is_parameter_value_not_containing(v2_obj, param_name, substring) == expected_result
+
+    @pytest.mark.parametrize(
+        "param_name, expected_result",
+        [
+            ("category", True),  # Parameter exists with non-empty value
+            ("family", True),  # Parameter exists with non-empty value
+            ("non_existent_param", False),  # Parameter doesn't exist
+            # The following would require setup with empty values
+            # ("empty_string_param", False),  # Parameter exists but has empty string value
+            # ("none_string_param", False),  # Parameter exists but has "None" string value
+        ],
+    )
+    def test_parameter_not_empty(self, test_objects, param_name, expected_result):
+        """Test 'not empty' check on parameter values."""
+        v2_obj, _ = test_objects
+
+        assert PropertyRules.is_parameter_value_not_empty(v2_obj, param_name) == expected_result
