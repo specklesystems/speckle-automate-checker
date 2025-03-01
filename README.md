@@ -18,19 +18,19 @@ The Checker function allows you to:
 
 ### 1. Prepare Your Rule Spreadsheet
 
-1. Access the [template spreadsheet](https://docs.google.com/spreadsheets/d/1hiPSw23eOaqd27QD_YsXvZg9PWm7_XBx/edit) (
-   make a copy to your drive)
-2. Define your rules using the format explained below
-3. Publish your rules by clicking "File > Download > Tab-separated values (.tsv)"
-4. Upload the TSV file to a hosting service (Google Drive, Dropbox, etc.) and get a public URL
+1. Access
+   the [template spreadsheet](https://docs.google.com/spreadsheets/d/1eB0RVuOXdjLyn4_GAPSahV05p1lqfSGQbH8WWijnkkA/edit?gid=0#gid=0)
+2. Use the Speckle menu to launch the Speckle sidebar and make a copy.
+3. Define your rules using the format explained below
+4. Publish your rules by clicking "Publish Rules". Copy the resultant URL.
 
 ### 2. Create an Automation
 
-1. Go to [Speckle Automate](https://automate.speckle.dev/)
+1. Go to your workspace project in [Speckle](https://app.speckle.systems/)
 2. Create a new Automation
 3. Select the Checker function
 4. Configure the function:
-    - Paste your TSV URL
+    - Paste your published rules URL
     - Set minimum severity level to report
     - Configure other options as needed
 5. Save and run your automation
@@ -58,20 +58,20 @@ Rules are defined in a spreadsheet with the following columns:
 
 ### Supported Predicates
 
-| Predicate        | Description                 | Example                            |
-|------------------|-----------------------------|------------------------------------|
-| exists           | Checks if a property exists | `height` exists                    |
-| equal to         | Exact value match           | `width` equal to `300`             |
-| not equal to     | Value doesn't match         | `material` not equal to `Concrete` |
-| greater than     | Value exceeds threshold     | `height` greater than `3000`       |
-| less than        | Value below threshold       | `thickness` less than `50`         |
-| in range         | Value within bounds         | `elevation` in range `0,10000`     |
-| in list          | Value in allowed set        | `type` in list `W1,W2,W3`          |
-| contains         | Property contains substring | `name` contains `Beam`             |
-| does not contain | Property doesn't contain    | `name` does not contain `temp`     |
-| is true          | Boolean property is true    | `is_structural` is true            |
-| is false         | Boolean property is false   | `is_placeholder` is false          |
-| is like          | Pattern matching            | `name` is like `^BR\d+$`           |
+| Predicate        | Description                 | Example                               |
+|------------------|-----------------------------|---------------------------------------|
+| exists           | Checks if a property exists | `height` exists                       |
+| equal to         | Exact value match           | `width` equal to `300`                |
+| not equal to     | Value doesn't match         | `material` not equal to `Concrete`    |
+| greater than     | Value exceeds threshold     | `height` greater than `3000`          |
+| less than        | Value below threshold       | `thickness` less than `50`            |
+| in range         | Value within bounds         | `elevation` in range `0,10000`        |
+| in list          | Value in allowed set        | `type` in list `W1,W2,W3`             |
+| contains         | Property contains substring | `name` contains `Beam`                |
+| does not contain | Property doesn't contain    | `name` does not contain `temp`        |
+| is true          | Boolean property is true    | `is_structural` is true               |
+| is false         | Boolean property is false   | `is_placeholder` is false             |
+| is like          | Loose text matching         | `name` is like `Wall` matches `Walls` |
 
 ## Rule Logic
 
@@ -118,4 +118,4 @@ Severity: ERROR
 
 ## Support
 
-For issues or questions, please open a GitHub issue or contact your Speckle support representative.
+For issues or questions, please let us know on the [Speckle Community Forum](https://speckle.community/).
