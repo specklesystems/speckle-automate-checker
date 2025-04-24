@@ -9,7 +9,7 @@ charset-normalizer==3.4.1
 click==8.1.8
 colorama==0.4.6
 deprecated==1.2.18
-gql==3.5.0
+gql==3.5.1
 graphql-core==3.2.6
 h11==0.14.0
 httpcore==1.0.7
