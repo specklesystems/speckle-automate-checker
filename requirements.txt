@@ -40,7 +40,7 @@ pytz==2025.1
 rapidfuzz==3.12.1
 requests==2.32.3
 requests-toolbelt==1.0.0
-ruff==0.9.6
+ruff==0.9.9
 six==1.17.0
 sniffio==1.3.1
 specklepy==2.21.3
