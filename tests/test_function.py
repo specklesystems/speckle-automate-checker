@@ -30,12 +30,14 @@ class TestFunction:
 
         """Run an integration test for the automate function."""
         automation_context = AutomationContext.initialize(test_automation_run_data, test_automation_token)
-        default_url: str = "https://drive.google.com/uc?export=download&id=1hiPSw23eOaqd27QD_YsXvZg9PWm7_XBx"
+        default_url: str = (
+            "https://speckle-model-checker-cedxvz7lzq-ew.a.run.app/r/6hdycwPELyTIT7Ueedh0UsWdJlTBefwSjDlcnd8LXGg/tsv"
+        )
 
         automate_sdk = run_function(
             automation_context,
             automate_function,
-            FunctionInputs(spreadsheet_url=default_url, minimum_severity=MinimumSeverity.WARNING, hide_skipped=True),
+            FunctionInputs(spreadsheet_url=default_url, minimum_severity=MinimumSeverity.INFO, hide_skipped=True),
         )
 
         assert automate_sdk.run_status == AutomationStatus.SUCCEEDED
