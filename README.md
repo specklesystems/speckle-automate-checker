@@ -1,14 +1,13 @@
-# Speckle Checker
+# Model Checker
 
-Speckle Checker is an Automate function that validates Speckle objects against configurable rules defined in a
-spreadsheet. This approach provides a flexible way to implement quality checks without coding, making it accessible to
-all team members.
+Model Checker is an Automate function that validates Speckle objects against configurable rules. This approach provides
+a flexible way to implement quality checks and maintain consistent standards across projects.
 
 ## Overview
 
-The Checker function allows you to:
+The Model Checker allows you to:
 
-- Define validation rules in a spreadsheet
+- Define validation rules for your objects
 - Configure severity levels for issues
 - Check properties across different types of objects
 - Generate reports of validation results
@@ -16,39 +15,35 @@ The Checker function allows you to:
 
 ## Getting Started
 
-### 1. Prepare Your Rule Spreadsheet
+### 1. Access the Model Checker Application
 
-1. Access
-   the [template spreadsheet](https://docs.google.com/spreadsheets/d/1eB0RVuOXdjLyn4_GAPSahV05p1lqfSGQbH8WWijnkkA/edit?gid=0#gid=0)
-2. Use the Speckle menu to launch the Speckle sidebar and make a copy.
-3. Define your rules using the format explained below
-4. Publish your rules by clicking "Publish Rules". Copy the resultant URL.
+1. Go to the [Model Checker Application](https://model-checker.speckle.systems)
+2. Sign in with your Speckle account
+3. Create and manage your validation rules through the intuitive web interface
 
 ### 2. Create an Automation
 
 1. Go to your workspace project in [Speckle](https://app.speckle.systems/)
 2. Create a new Automation
-3. Select the Checker function
+3. Select the Model Checker function
 4. Configure the function:
-    - Paste your published rules URL
     - Set minimum severity level to report
     - Configure other options as needed
 5. Save and run your automation
 
 ## Rule Definition Format
 
-Rules are defined in a spreadsheet with the following columns:
+Rules are defined with the following components:
 
-| Rule Number | Logic | Property Name | Predicate    | Value     | Message              | Report Severity |
-|-------------|-------|---------------|--------------|-----------|----------------------|-----------------|
-| 1           | WHERE | category      | matches      | Walls     | Wall thickness check | ERROR           |
-| 1           | AND   | Width         | greater than | 200       |                      |                 |
-| 2           | WHERE | category      | matches      | Columns   | Column height check  | WARNING         |
-| 2           | AND   | height        | in range     | 2500,4000 |                      |                 |
+| Logic | Property Name | Predicate    | Value     | Message              | Report Severity |
+|-------|---------------|--------------|-----------|----------------------|-----------------|
+| WHERE | category      | matches      | Walls     | Wall thickness check | ERROR           |
+| CHECK | Width         | greater than | 200       |                      |                 |
+| WHERE | category      | matches      | Columns   | Column height check  | WARNING         |
+| AND   | height        | in range     | 2500,4000 |                      |                 |
 
-### Column Explanation
+### Component Explanation
 
-- **Rule Number**: Groups conditions that belong to the same rule
 - **Logic**: Defines how conditions are combined (WHERE, AND, CHECK)
 - **Property Name**: The object property or parameter to check
 - **Predicate**: Comparison operation (equals, greater than, etc.)
@@ -84,7 +79,7 @@ are reported as issues.
 
 ## Working with Object Properties
 
-The Checker understands properties in Speckle objects regardless of schema:
+The Model Checker understands properties in Speckle objects regardless of schema:
 
 - Direct properties: `category`, `name`, `id`
 - Nested properties: `parameters.WIDTH.value`
@@ -95,27 +90,41 @@ The Checker understands properties in Speckle objects regardless of schema:
 ### Wall Thickness Check
 
 ```
-Rule 1: WHERE category equals "Walls" AND width less than "200"
-Message: "Wall too thin - minimum thickness is 200mm"
+Rule: WHERE category equals "Walls" AND width less than "200"
+Message: "Walls must have width of at least 200."
 Severity: ERROR
 ```
 
 ### Door Naming Convention
 
 ```
-Rule 2: WHERE category equals "Doors" AND name is not like "^D\d{3}$"
-Message: "Door name must follow pattern D followed by 3 digits"
+Rule: WHERE category equals "Doors" AND name is not like "^D\d{3}$"
+Message: "All doors must have a name that follows the format "D" followed by three digits."
 Severity: WARNING
 ```
 
 ### Structural Column Height Range
 
 ```
-Rule 3: WHERE category equals "Columns" AND is_structural is true AND height not in range "2400,4000"
-Message: "Structural column height outside acceptable range (2400-4000mm)"
+Rule: WHERE category equals "Columns" AND is_structural is true AND height not in range "2400,4000"
+Message: "Structural columns must have a height between 2400 and 4000."
 Severity: ERROR
 ```
 
 ## Support
 
 For issues or questions, please let us know on the [Speckle Community Forum](https://speckle.community/).
+
+### Alternative: TSV File Format
+
+While the Model Checker Application is the recommended way to create and manage rules, you can also create compatible
+TSV (Tab-Separated Values) files manually. This can be useful for:
+
+- Programmatically generating rules
+- Version controlling rules in a text format
+- Integrating with existing workflows
+- Creating rules in bulk
+
+The TSV file should follow the same structure as shown in the table above, with columns separated by tabs. The file will
+then need to be hosted somewhere and served with MIME-type of `text/tab-separated-values` and the URL used in the
+automation configuration.
