@@ -95,7 +95,7 @@ def evaluate_condition(
     Returns:
         True if the condition is met, False otherwise
     """
-    property_name = condition["Property Name"]
+    property_name = condition.get("Property Name", condition.get("Property Path"))
     predicate_key = condition["Predicate"]
     value = condition["Value"]
 
@@ -323,7 +323,7 @@ def get_severity(rule_info: pd.Series) -> SeverityLevel:
     Returns:
         Appropriate SeverityLevel enum value
     """
-    severity = rule_info.get("Report Severity")  # Extract severity from input data
+    severity = rule_info.get("Report Severity") or rule_info.get("Severity")  # Extract severity from input data
 
     # If severity is None or not a string (e.g., numeric input), default to ERROR
     if not isinstance(severity, str):

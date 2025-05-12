@@ -64,8 +64,10 @@ def process_rule_numbers(df: DataFrame) -> DataFrame:
         # Get slice of rows for this group
         group_slice = df.iloc[start_idx:end_idx]
 
-        # Try to get rule number from first row
-        group_rule_num = group_slice["Rule Number"].iloc[0]
+        # Try to get rule number from first row, fall back to "Rule #"
+        group_rule_num = (
+            group_slice["Rule Number"].iloc[0] if not pd.isna(group_slice["Rule Number"].iloc[0]) else "Rule #"
+        )
 
         if pd.isna(group_rule_num):
             # If no rule number, generate next available number
@@ -90,8 +92,7 @@ def process_rule_numbers(df: DataFrame) -> DataFrame:
 
 
 def validate_rule_numbers(df: DataFrame) -> list[str]:
-    """ "
-    Validate rule numbers and return any warnings or errors.
+    """Validate rule numbers and return any warnings or errors.
 
     This checks for issues like:
     1. Missing rule numbers
@@ -128,8 +129,7 @@ def validate_rule_numbers(df: DataFrame) -> list[str]:
 
 
 def read_rules_from_spreadsheet(url: str) -> tuple[DataFrameGroupBy, list[str]] | tuple[None, list[str]]:
-    """ "
-    Reads rules from a TSV file at the provided URL, processes them, and returns grouped rules.
+    """Reads rules from a TSV file at the provided URL, processes them, and returns grouped rules.
 
     This function is the main entry point for rule loading:
     1. Reads the TSV file from the provided URL
