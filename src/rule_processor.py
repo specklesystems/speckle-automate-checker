@@ -263,21 +263,27 @@ def apply_rules_to_objects(
         rules_processed += 1
 
         # Ensure rule_group has necessary columns
-        if "Message" not in rule_group.columns or "Report Severity" not in rule_group.columns:
+        if "Message" not in rule_group.columns or (
+            "Report Severity" not in rule_group.columns and "Severity" not in rule_group.columns
+        ):
             continue  # Or raise an exception if these columns are mandatory
-
-        pass_objects, fail_objects = process_rule(speckle_objects, rule_group)
 
         # Get the severity level for this rule
         rule_severity = get_severity(rule_group.iloc[-1])
         rule_severity_level = severity_levels[MinimumSeverity(rule_severity.value)]
+
+        # Check if the rule severity level meets the minimum severity level - no point in processing lower severity rules
+        if rule_severity_level < min_severity_level:
+            continue
+
+        pass_objects, fail_objects = process_rule(speckle_objects, rule_group)
 
         # For passing objects, only attach if we're showing all levels (INFO)
         if minimum_severity == MinimumSeverity.INFO:
             attach_results(pass_objects, rule_group.iloc[-1], rule_id_str, automate_context, True)
 
         # For failing objects, attach if they meet minimum severity threshold
-        if rule_severity_level >= min_severity_level:
+        if len(fail_objects) and rule_severity_level >= min_severity_level:
             attach_results(fail_objects, rule_group.iloc[-1], rule_id_str, automate_context, False)
 
         if len(pass_objects) == 0 and len(fail_objects) == 0 and not hide_skipped:
