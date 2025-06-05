@@ -3,67 +3,6 @@ from specklepy.objects.base import Base
 
 
 @pytest.fixture
-def v2_wall():
-    """Creates a v2-style Speckle wall object."""
-    wall = Base()
-    wall.id = "cdb18060dc48281909e94f0f1d8d3cc0"
-    wall.type = "W30(Fc24)"
-    wall.units = "mm"
-    wall.family = "Basic Wall"
-    wall.height = 1400
-    wall.flipped = False
-    wall.category = "Walls"
-    wall.elementId = "4479852"
-    wall.worksetId = "0"
-    wall.structural = True
-    wall.baseOffset = -2000
-    wall.topOffset = -600
-
-    # Create base line geometry
-    wall.baseLine = Base()
-    wall.baseLine.start = Base()
-    wall.baseLine.start.x = 22400.000000000007
-    wall.baseLine.start.y = 15199.999999999998
-    wall.baseLine.start.z = -2000.0000000000002
-    wall.baseLine.end = Base()
-    wall.baseLine.end.x = 22400.000000000015
-    wall.baseLine.end.y = 20500
-    wall.baseLine.end.z = -2000.0000000000002
-    wall.baseLine.units = "mm"
-    wall.baseLine.length = 5300.000000000002
-
-    # Create parameters structure
-    wall.parameters = Base()
-
-    # Standard parameter
-    wall.parameters["WALL_ATTR_WIDTH_PARAM"] = Base()
-    wall.parameters["WALL_ATTR_WIDTH_PARAM"].name = "Width"
-    wall.parameters["WALL_ATTR_WIDTH_PARAM"].value = 300
-    wall.parameters["WALL_ATTR_WIDTH_PARAM"].units = "mm"
-
-    # Parameter with GUID key
-    wall.parameters["ee1f33e1-5506-4a64-b87b-7b98d30aea52"] = Base()
-    wall.parameters["ee1f33e1-5506-4a64-b87b-7b98d30aea52"].name = "符号"
-    wall.parameters["ee1f33e1-5506-4a64-b87b-7b98d30aea52"].value = "W30"
-    wall.parameters["ee1f33e1-5506-4a64-b87b-7b98d30aea52"].isShared = True
-    wall.parameters[
-        "ee1f33e1-5506-4a64-b87b-7b98d30aea52"
-    ].internalDefinitionName = "ee1f33e1-5506-4a64-b87b-7b98d30aea52"
-
-    wall.parameters["STRUCTURAL_MATERIAL_PARAM"] = Base()
-    wall.parameters["STRUCTURAL_MATERIAL_PARAM"].name = "Structural Material"
-    wall.parameters["STRUCTURAL_MATERIAL_PARAM"].value = "Fc24"
-
-    # Create basic level reference
-    wall.level = Base()
-    wall.level.name = "1FL"
-    wall.level.elevation = 0
-    wall.level.units = "mm"
-
-    return wall
-
-
-@pytest.fixture
 def v3_wall():
     """Creates a v3-style Speckle wall object."""
     wall = Base()
@@ -79,25 +18,47 @@ def v3_wall():
 
     # Create location geometry
     wall.location = Base()
+    wall.location.id = "9c76b8de34382c9052965ee463f8374b"
     wall.location.start = Base()
     wall.location.start.x = 22400.000000000007
     wall.location.start.y = 15199.999999999998
     wall.location.start.z = 0
+    wall.location.start.id = "d0c4fdb2e11cc825e7f05f9dc88a0be1"
+    wall.location.start.units = "mm"
+    wall.location.start.speckle_type = "Objects.Geometry.Point"
     wall.location.end = Base()
     wall.location.end.x = 22400.000000000015
     wall.location.end.y = 20500
     wall.location.end.z = 0
+    wall.location.end.id = "3455575bfd8939f264d295b61e74156f"
+    wall.location.end.units = "mm"
+    wall.location.end.speckle_type = "Objects.Geometry.Point"
     wall.location.units = "mm"
+    wall.location.domain = Base()
+    wall.location.domain.id = "3b97feaad2dbcc2d894c9cec024a9bf2"
+    wall.location.domain.end = 17.388451443569522
+    wall.location.domain.start = -3.552713668866051e-14
+    wall.location.domain.speckle_type = "Objects.Primitive.Interval"
     wall.location.length = 5300.000000000002
+    wall.location.speckle_type = "Objects.Geometry.Line"
 
-    # Create nested properties structure
+    # Create level references
+    wall.level = Base()
+    wall.level.name = "1FL"
+    wall.level.units = "mm"
+    wall.level.elevation = 0
+
+    wall.topLevel = Base()
+    wall.topLevel.name = "1FL"
+    wall.topLevel.units = "mm"
+    wall.topLevel.elevation = 0
+
+    # Create properties structure
     wall.properties = Base()
     wall.properties.Parameters = Base()
-
-    # Type Parameters
     wall.properties.Parameters["Type Parameters"] = Base()
 
-    # Add Text section with GUID parameter
+    # Add Text section
     wall.properties.Parameters["Type Parameters"].Text = Base()
     wall.properties.Parameters["Type Parameters"].Text["符号"] = {
         "name": "符号",
@@ -105,6 +66,7 @@ def v3_wall():
         "internalDefinitionName": "ee1f33e1-5506-4a64-b87b-7b98d30aea52",
     }
 
+    # Add Structure section
     wall.properties.Parameters["Type Parameters"].Structure = Base()
     wall.properties.Parameters["Type Parameters"].Structure["Fc24 (0)"] = {
         "units": "mm",
@@ -113,20 +75,21 @@ def v3_wall():
         "thickness": 300,
     }
 
-    # Instance Parameters
+    # Add Construction section
+    wall.properties.Parameters["Type Parameters"].Construction = Base()
+    wall.properties.Parameters["Type Parameters"].Construction.Width = {
+        "name": "Width",
+        "units": "Millimeters",
+        "value": 300,
+        "internalDefinitionName": "WALL_ATTR_WIDTH_PARAM",
+    }
+
+    # Add Instance Parameters
     wall.properties.Parameters["Instance Parameters"] = Base()
     wall.properties.Parameters["Instance Parameters"].Structural = Base()
-    wall.properties.Parameters["Instance Parameters"].Structural.Structural = {"name": "Structural", "value": "Yes"}
-
-    # Create basic level references
-    wall.level = Base()
-    wall.level.name = "1FL"
-    wall.level.elevation = 0
-    wall.level.units = "mm"
-
-    wall.topLevel = Base()
-    wall.topLevel.name = "1FL"
-    wall.topLevel.elevation = 0
-    wall.topLevel.units = "mm"
+    wall.properties.Parameters["Instance Parameters"].Structural.Structural = {
+        "name": "Structural",
+        "value": "Yes",
+    }
 
     return wall
