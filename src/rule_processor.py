@@ -53,17 +53,23 @@ def validate_rule_structure(rule_group: pd.DataFrame) -> None:
 
     # Check if first condition is WHERE
     if logic_values.iloc[0] != "WHERE":
-        raise ValueError(f"Rule {rule_group.iloc[0]['Rule Number']} must start with WHERE")
+        raise ValueError(
+            f"Rule {rule_group.iloc[0]['Rule Number']} must start with WHERE"
+        )
 
     # Count CHECK conditions
     check_count = sum(1 for value in logic_values if value == "CHECK")
     if check_count > 1:
-        raise ValueError(f"Rule {rule_group.iloc[0]['Rule Number']} has multiple CHECK conditions")
+        raise ValueError(
+            f"Rule {rule_group.iloc[0]['Rule Number']} has multiple CHECK conditions"
+        )
 
     # If CHECK exists, ensure it's the last condition
     check_indices = logic_values[logic_values == "CHECK"].index
     if check_count == 1 and check_indices[0] != rule_group.index[-1]:
-        raise ValueError(f"CHECK must be the last condition in rule {rule_group.iloc[0]['Rule Number']}")
+        raise ValueError(
+            f"CHECK must be the last condition in rule {rule_group.iloc[0]['Rule Number']}"
+        )
 
     # Validate Logic values
     valid_values = {"WHERE", "AND", "CHECK"}
@@ -73,7 +79,10 @@ def validate_rule_structure(rule_group: pd.DataFrame) -> None:
 
 
 def evaluate_condition(
-    speckle_object: Base, condition: pd.Series, rule_number: str | None = None, case_number: int | None = None
+    speckle_object: Base,
+    condition: pd.Series,
+    rule_number: str | None = None,
+    case_number: int | None = None,
 ) -> bool:
     """Evaluates a single condition against a Speckle object.
 
@@ -87,7 +96,8 @@ def evaluate_condition(
         speckle_object: The Speckle object to evaluate against
         condition: A pandas Series containing the condition details
             - 'Property Name': The name of the property to check
-            - 'Predicate': The comparison operation (like 'equals', 'greater than')
+            - 'Predicate': The comparison operation (like 'equals',
+                           'greater than')
             - 'Value': The value to compare against
         rule_number: For tracking, the rule number being evaluated
         case_number: For tracking, the condition number within the rule
@@ -95,7 +105,9 @@ def evaluate_condition(
     Returns:
         True if the condition is met, False otherwise
     """
-    property_name = condition.get("Property Name", condition.get("Property Path"))
+    property_name = condition.get(
+        "Property Name", condition.get("Property Path")
+    )
     predicate_key = condition["Predicate"]
     value = condition["Value"]
 
@@ -116,7 +128,9 @@ def evaluate_condition(
     return False
 
 
-def get_filters_and_check(rule_group: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
+def get_filters_and_check(
+    rule_group: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.Series]:
     """Separates rule conditions into filtering conditions and the final check condition.
 
     This function handles two rule formats:
@@ -158,7 +172,9 @@ def get_filters_and_check(rule_group: pd.DataFrame) -> tuple[pd.DataFrame, pd.Se
         else:
             # No AND conditions found, just use WHERE as filter
             filters = rule_group
-            final_check = rule_group.iloc[0]  # Default to first condition as check
+            final_check = rule_group.iloc[
+                0
+            ]  # Default to first condition as check
 
     return filters, final_check
 
@@ -204,7 +220,10 @@ def process_rule(
             obj
             for obj in filtered_objects
             if evaluate_condition(
-                speckle_object=obj, condition=filter_condition, rule_number=rule_number, case_number=index
+                speckle_object=obj,
+                condition=filter_condition,
+                rule_number=rule_number,
+                case_number=index,
             )
         ]
 
@@ -219,7 +238,10 @@ def process_rule(
 
     for obj in filtered_objects:
         if evaluate_condition(
-            speckle_object=obj, condition=final_check, rule_number=rule_number, case_number=len(filters)
+            speckle_object=obj,
+            condition=final_check,
+            rule_number=rule_number,
+            case_number=len(filters),
         ):
             pass_objects.append(obj)
         else:
@@ -235,7 +257,7 @@ def apply_rules_to_objects(
     minimum_severity: MinimumSeverity = MinimumSeverity.INFO,
     hide_skipped: bool = False,
 ) -> dict[str, tuple[list[Base], list[Base]]]:
-    """Applies defined rules to a list of objects and updates the automate context with the results.
+    """Applies rules to objects and updates the automate context results.
 
     This is the main orchestration function that:
     1. Processes each rule group against all objects
@@ -255,7 +277,11 @@ def apply_rules_to_objects(
     """
     grouped_results = {}
     rules_processed = 0
-    severity_levels = {MinimumSeverity.INFO: 0, MinimumSeverity.WARNING: 1, MinimumSeverity.ERROR: 2}
+    severity_levels = {
+        MinimumSeverity.INFO: 0,
+        MinimumSeverity.WARNING: 1,
+        MinimumSeverity.ERROR: 2,
+    }
     min_severity_level = severity_levels[minimum_severity]
 
     for rule_id, rule_group in grouped_rules:
@@ -264,15 +290,19 @@ def apply_rules_to_objects(
 
         # Ensure rule_group has necessary columns
         if "Message" not in rule_group.columns or (
-            "Report Severity" not in rule_group.columns and "Severity" not in rule_group.columns
+            "Report Severity" not in rule_group.columns
+            and "Severity" not in rule_group.columns
         ):
             continue  # Or raise an exception if these columns are mandatory
 
         # Get the severity level for this rule
         rule_severity = get_severity(rule_group.iloc[-1])
-        rule_severity_level = severity_levels[MinimumSeverity(rule_severity.value)]
+        rule_severity_level = severity_levels[
+            MinimumSeverity(rule_severity.value)
+        ]
 
-        # Check if the rule severity level meets the minimum severity level - no point in processing lower severity rules
+        # Check if the rule severity level meets the minimum severity level
+        # no point in processing lower severity rules
         if rule_severity_level < min_severity_level:
             continue
 
@@ -280,16 +310,35 @@ def apply_rules_to_objects(
 
         # For passing objects, only attach if we're showing all levels (INFO)
         if minimum_severity == MinimumSeverity.INFO:
-            attach_results(pass_objects, rule_group.iloc[-1], rule_id_str, automate_context, True)
+            attach_results(
+                pass_objects,
+                rule_group.iloc[-1],
+                rule_id_str,
+                automate_context,
+                True,
+            )
 
         # For failing objects, attach if they meet minimum severity threshold
         if len(fail_objects) and rule_severity_level >= min_severity_level:
-            attach_results(fail_objects, rule_group.iloc[-1], rule_id_str, automate_context, False)
+            attach_results(
+                fail_objects,
+                rule_group.iloc[-1],
+                rule_id_str,
+                automate_context,
+                False,
+            )
 
-        if len(pass_objects) == 0 and len(fail_objects) == 0 and not hide_skipped:
+        if (
+            len(pass_objects) == 0
+            and len(fail_objects) == 0
+            and not hide_skipped
+        ):
+            speckle_print(f"Rule {rule_id_str} Skipped")
+
             automate_context.attach_info_to_objects(
                 category=f"Rule {rule_id_str} Skipped",
-                object_ids=["0"],  # This is a hack to get a rule to report with no valid objects
+                object_ids=[Base()],
+                # This is a hack to get a rule to report with no valid objects
                 message=f"No objects found for rule {rule_id_str}",
                 metadata={},
             )
@@ -315,7 +364,7 @@ class SeverityLevel(Enum):
 
 
 def get_severity(rule_info: pd.Series) -> SeverityLevel:
-    """Convert a string severity level from the spreadsheet to the corresponding SeverityLevel enum.
+    """Convert a string severity to the corresponding SeverityLevel enum.
 
     This function normalizes user input with robust handling for:
     - Case insensitivity (e.g., "info", "WARNING" → "Info", "Warning")
@@ -324,18 +373,24 @@ def get_severity(rule_info: pd.Series) -> SeverityLevel:
     - Default fallback to ERROR for invalid input
 
     Args:
-        rule_info: Series containing rule information with 'Report Severity' key
+        rule_info: Series containing rule information with 'Report Severity'
+                   key
 
     Returns:
         Appropriate SeverityLevel enum value
     """
-    severity = rule_info.get("Report Severity") or rule_info.get("Severity")  # Extract severity from input data
+    severity = rule_info.get("Report Severity") or rule_info.get(
+        "Severity"
+    )  # Extract severity from input data
 
-    # If severity is None or not a string (e.g., numeric input), default to ERROR
+    # If severity is None or not a string (e.g., numeric input),
+    # default to ERROR
     if not isinstance(severity, str):
         return SeverityLevel.ERROR
 
-    severity = severity.strip().upper()  # Remove leading/trailing spaces & normalize case
+    severity = (
+        severity.strip().upper()
+    )  # Remove leading/trailing spaces & normalize case
 
     # Define a mapping for shorthand or alternate spellings
     alias_map = {
@@ -345,7 +400,8 @@ def get_severity(rule_info: pd.Series) -> SeverityLevel:
     # Replace shorthand values if applicable
     severity = alias_map.get(severity, severity)
 
-    # Attempt to match with an existing SeverityLevel enum value (case-insensitive)
+    # Attempt to match with an existing SeverityLevel enum value
+    # (case-insensitive)
     return next(
         (level for level in SeverityLevel if level.value.upper() == severity),
         SeverityLevel.ERROR,  # Default to ERROR if no match is found
@@ -353,7 +409,10 @@ def get_severity(rule_info: pd.Series) -> SeverityLevel:
 
 
 def get_metadata(
-    rule_id: str, rule_info: pd.Series, passed: bool, speckle_objects: list[Base]
+    rule_id: str,
+    rule_info: pd.Series,
+    passed: bool,
+    speckle_objects: list[Base],
 ) -> dict[str, str | int | Any]:
     """Generates structured metadata for rule results.
 
@@ -369,7 +428,8 @@ def get_metadata(
         speckle_objects: List of Speckle objects affected
 
     Returns:
-        Dictionary containing metadata if valid JSON serializable, empty dict otherwise
+        Dictionary containing metadata if valid JSON serializable,
+          empty dict otherwise
     """
     try:
         metadata = {
@@ -399,7 +459,8 @@ def attach_results(
 ) -> None:
     """Attaches rule results to objects in the Speckle Automate context.
 
-    This function is the interface to the Speckle platform for reporting results:
+    This function is the interface to the Speckle platform for reporting
+    results:
     - For failing objects, attaches results with appropriate severity levels
     - For passing objects, attaches informational results
     - Includes structured metadata for consistent reporting
@@ -429,7 +490,7 @@ def attach_results(
         )
         context.attach_result_to_objects(
             category=f"Rule {rule_id}",
-            object_ids=[speckle_object.id for speckle_object in speckle_objects],
+            affected_objects=speckle_objects,
             message=message,
             level=severity,
             metadata=metadata,
@@ -437,7 +498,7 @@ def attach_results(
     else:
         context.attach_info_to_objects(
             category=f"Rule {rule_id}",
-            object_ids=[speckle_object.id for speckle_object in speckle_objects],
+            affected_objects=speckle_objects,
             message=message,
             metadata=metadata,
         )
@@ -456,7 +517,8 @@ def format_message(rule_info):
     """
     message = (
         str(rule_info["Message"])
-        if rule_info["Message"] is not None and not pd.isna(rule_info["Message"])
+        if rule_info["Message"] is not None
+        and not pd.isna(rule_info["Message"])
         else "No Message"
     )
     return message

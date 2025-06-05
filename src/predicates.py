@@ -1,4 +1,4 @@
-"""Configuration module defining mappings between spreadsheet predicates and rule methods."""
+"""Defines mappings between spreadsheet predicates and rule methods."""
 
 from src.rules import PropertyRules
 
@@ -16,5 +16,7 @@ PREDICATE_METHOD_MAP = {
     "is like": PropertyRules.is_parameter_value_like.__name__,
     "identical to": PropertyRules.is_identical_value.__name__,
     "contains": PropertyRules.is_parameter_value_containing.__name__,
-    "does not contain": PropertyRules.is_parameter_value_not_containing.__name__,
+    "does not contain": (
+        PropertyRules.is_parameter_value_not_containing.__name__
+    ),
 }

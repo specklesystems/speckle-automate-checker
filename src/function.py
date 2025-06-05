@@ -82,7 +82,9 @@ def automate_function(
     # The rules are defined in an external spreadsheet (TSV format)
     # This allows non-technical users to define and modify rules
     # without changing the code
-    grouped_rules, messages = read_rules_from_spreadsheet(function_inputs.spreadsheet_url)
+    grouped_rules, messages = read_rules_from_spreadsheet(
+        function_inputs.spreadsheet_url
+    )
 
     # Handle any validation messages from rule processing
     for message in messages:
@@ -119,5 +121,6 @@ def automate_function(
     # Mark the run as successful and provide a summary message
     # This message will be displayed to the user in the Speckle UI
     automate_context.mark_run_success(
-        f"Successfully applied {len(grouped_rules)} rules to {len(flat_list_of_objects)} version {VERSION} objects."
+        f"Successfully applied {len(grouped_rules)} rules to "
+        f"{len(flat_list_of_objects)} version {VERSION} objects."
     )

@@ -1,5 +1,5 @@
-# Use the official Python 3.11 slim image as the base
-FROM python:3.11-slim
+# Use the official Python 3.13 slim image as the base
+FROM python:3.13-slim
 
 # Set the working directory inside the container
 WORKDIR /home/speckle
@@ -9,7 +9,7 @@ COPY . /home/speckle
 
 # Upgrade pip and install dependencies using requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r /home/speckle/requirements.txt
+  pip install --no-cache-dir -r /home/speckle/requirements.txt
 
 # Set the entrypoint for running the Speckle function
 CMD ["python", "-u", "main.py", "run"]

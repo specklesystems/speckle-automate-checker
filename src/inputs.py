@@ -1,3 +1,8 @@
+"""This file contains the inputs for the function.
+
+It is used to define the inputs for the function and to validate them.
+"""
+
 from enum import Enum
 
 from pydantic import Field
