@@ -335,9 +335,12 @@ def apply_rules_to_objects(
         ):
             speckle_print(f"Rule {rule_id_str} Skipped")
 
+            newBase = Base()
+            newBase.id = "123"
+
             automate_context.attach_info_to_objects(
                 category=f"Rule {rule_id_str} Skipped",
-                affected_objects=[Base()],
+                affected_objects=[newBase],
                 # This is a hack to get a rule to report with no valid objects
                 message=f"No objects found for rule {rule_id_str}",
                 metadata={},
