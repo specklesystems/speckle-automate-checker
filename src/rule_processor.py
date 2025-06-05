@@ -337,7 +337,7 @@ def apply_rules_to_objects(
 
             automate_context.attach_info_to_objects(
                 category=f"Rule {rule_id_str} Skipped",
-                object_ids=[Base()],
+                affected_objects=[Base()],
                 # This is a hack to get a rule to report with no valid objects
                 message=f"No objects found for rule {rule_id_str}",
                 metadata={},
